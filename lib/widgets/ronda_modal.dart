@@ -1,8 +1,68 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yardsafety/pantallas/menuRep.dart';
+import 'package:yardsafety/models/rondas.dart';
+import 'package:intl/intl.dart';
 
+void showRondaModal(BuildContext context, Ronda ronda) {
+  // Obtener la fecha y hora actuales del sistema
+  final DateTime now = DateTime.now();
 
-void showRondaModal(BuildContext context, {required String titulo, required String inicio, required String fin}) {
+  // Formatear la fecha y hora actual
+  final DateFormat formatter = DateFormat('dd-MM-yyyy HH:mm', 'es');
+  final String formattedTime = formatter.format(now);
+
+  // Función para iniciar la ronda haciendo una llamada a la API
+  Future<void> _iniciarRonda(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('token');
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Token de autenticación no encontrado.')),
+      );
+      return;
+    }
+
+    final url = 'http://yard-safety-web.test/api/v1/rondas/${ronda.id}';
+
+    try {
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'status': 2, // 2 = En proceso
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204 ) {
+      print('Ronda actualizada a estado "En Proceso"');
+      print(' Redirigiendo a MenuReportesPage...');
+          Navigator.of(context).pop(); 
+         Navigator.pushReplacement(
+          context,
+           MaterialPageRoute(builder: (context) => const MenuReportesPage()),
+          );
+          } else {
+         print(' Error al actualizar la ronda');
+         print('Status code: ${response.statusCode}');
+          print('Body: ${response.body}');
+           ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error al actualizar la ronda: ${response.statusCode}')),
+  );
+}
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    }
+  }
+
   showDialog(
     context: context,
     builder: (BuildContext context) {
@@ -15,7 +75,7 @@ void showRondaModal(BuildContext context, {required String titulo, required Stri
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Iniciar $titulo',
+                'Iniciar ${ronda.nombre}',
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
@@ -28,7 +88,10 @@ void showRondaModal(BuildContext context, {required String titulo, required Stri
                   color: const Color.fromARGB(255, 240, 240, 240),
                   borderRadius: BorderRadius.circular(10.0),
                 ),
-                child: Text(inicio, textAlign: TextAlign.center),
+                child: Text(
+                  formattedTime,
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: 16),
               const Text('Finalización:', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -39,16 +102,14 @@ void showRondaModal(BuildContext context, {required String titulo, required Stri
                   color: const Color.fromARGB(255, 240, 240, 240),
                   borderRadius: BorderRadius.circular(10.0),
                 ),
-                child: Text(fin, textAlign: TextAlign.center),
+                child: Text(
+                  ronda.horaFin ?? 'N/A',
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => const MenuReportesPage()),
-                  );
-                },
+                onPressed: () => _iniciarRonda(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,

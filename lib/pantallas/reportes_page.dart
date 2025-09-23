@@ -69,8 +69,9 @@ class _ReportesPageState extends State<ReportesPage> {
 
       if (response.statusCode == 200) {
         // La respuesta del servidor es una lista, así que la decodificamos como una lista
-        print('Respuesta del servidor: ${response.body}');
-        final List<dynamic> rondasJson = json.decode(response.body);
+        final resp = json.decode(response.body);
+        final List<dynamic> rondasJson = resp['data'];
+
         if (mounted) {
           setState(() {
             _rondas = rondasJson.map((json) => Ronda.fromJson(json)).toList();
@@ -95,11 +96,7 @@ class _ReportesPageState extends State<ReportesPage> {
     }
   }
 
-  void _startNewReport() {
-    setState(() {
-      _showNewReportScreen = true;
-    });
-  }
+  
 
   void _backToRondas() {
     setState(() {
@@ -116,7 +113,7 @@ class _ReportesPageState extends State<ReportesPage> {
       mainContent = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
       mainContent = Center(
-        child: Text(_error!),
+        child: Text(_error ?? 'Ocurrió un error desconocido'),
       );
     } else if (_rondas.isEmpty) {
       mainContent = const Center(
@@ -151,10 +148,7 @@ class _ReportesPageState extends State<ReportesPage> {
           NewReportScreen(onBack: _backToRondas),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _startNewReport,
-        child: const Icon(Icons.add),
-      ),
+     
     );
   }
 }

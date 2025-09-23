@@ -35,9 +35,11 @@ class SiniestrosPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(title),
-        leading: IconButton(
+          leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
       ),
       body: ListView.builder(
