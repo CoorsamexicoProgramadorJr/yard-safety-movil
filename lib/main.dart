@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yardsafety/pantallas/login.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+// main
 void main() async {
   // Asegurarse de que los widgets están inicializados
   WidgetsFlutterBinding.ensureInitialized();
