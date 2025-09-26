@@ -15,6 +15,7 @@ class RondaCard extends StatelessWidget {
         ? const Icon(Icons.play_circle_outline, color: Colors.blue)
         : const Icon(Icons.access_time, color: Colors.grey);
 
+
     // Formatear la fecha y la hora para el subtítulo
     String subtitleText = 'Horario no disponible';
     if (ronda.horaInicio != null && ronda.horaInicio!.isNotEmpty) {
