@@ -8,8 +8,6 @@ class ReporteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String cardTitle = '${reporte.tipo}: ${reporte.ubicacion}';
-
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 4,
@@ -19,12 +17,27 @@ class ReporteCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              cardTitle,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 1, 21, 56),
+            // RichText para separar color del tipo y ubicación
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${reporte.tipo}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: _getTipoColor(reporte.tipo),
+                    ),
+                  ),
+                  TextSpan(
+                    text: '   en ${reporte.ubicacion}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromARGB(255, 1, 21, 56),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),
@@ -35,27 +48,22 @@ class ReporteCard extends StatelessWidget {
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 12),
-            // Detalles adicionales como Empresa, Unidad, Gravedad
-           /// _buildDetailRow(Icons.business, 'Empresa:', reporte.empresa),
-            // Iconos eliminados de Unidad y Gravedad
-            _buildDetailRow(null, 'Unidad:', reporte.unidad), // Ya no se pasa un IconData
-            _buildDetailRow(null, 'Gravedad:', reporte.gravedad, color: _getGravedadColor(reporte.gravedad)), // Ya no se pasa un IconData
+            _buildDetailRow(null, 'Unidad:', reporte.unidad),
+            _buildDetailRow(null, 'Estatus:', reporte.gravedad),
           ],
         ),
       ),
     );
   }
 
-  // Se modificó IconData a ser nullable (IconData?) para que sea opcional
   Widget _buildDetailRow(IconData? icon, String label, String value, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Solo muestra el icono si no es nulo
           if (icon != null) ...[
-            Icon(icon, size: 16, color: Colors.grey[700]),
+            Icon(icon, size: 16, color: const Color.fromARGB(255, 3, 232, 26)),
             const SizedBox(width: 8),
           ],
           Text(
@@ -66,7 +74,7 @@ class ReporteCard extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(fontSize: 13, color: color ?? Colors.black87),
+              style: TextStyle(fontSize: 13, color: color ?? const Color.fromARGB(221, 0, 0, 0)),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -75,16 +83,14 @@ class ReporteCard extends StatelessWidget {
     );
   }
 
-  Color _getGravedadColor(String gravedad) {
-    switch (gravedad.toLowerCase()) {
-      case 'crítica':
-        return Colors.red;
-      case 'alta':
+  Color _getTipoColor(String tipo) {
+    switch (tipo.toLowerCase()) {
+      case 'incidente':
+        return const Color.fromARGB(255, 208, 162, 25);
+      case 'accidente':
         return Colors.orange;
-      case 'media':
-        return Colors.amber;
-      case 'baja':
-        return Colors.green;
+      case 'siniestro':
+        return Colors.red;
       default:
         return Colors.grey;
     }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:yardsafety/models/rondas.dart';
 import 'package:yardsafety/widgets/ronda_modal.dart';
-import 'package:yardsafety/pantallas/menuRep.dart'; // Asegúrate de importar la pantalla a la que quieres navegar
+import 'package:yardsafety/pantallas/menu_reportes_page.dart'; // Asegúrate de importar la pantalla a la que quieres navegar
 
 class RondaCard extends StatelessWidget {
   final Ronda ronda;
 
-  const RondaCard({super.key, required this.ronda});
+  const RondaCard({super.key, required this.ronda, required void Function() onTap});
 
   @override
   Widget build(BuildContext context) {

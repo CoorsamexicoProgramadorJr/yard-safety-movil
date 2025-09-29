@@ -163,37 +163,7 @@ class ReporteDetailsPage extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8.0),
-            Center(
-              child: TextButton.icon(
-                onPressed: () {
-                  if (reporte.imagenes.isNotEmpty) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            EvidenciasPage(imagenes: reporte.imagenes),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Este reporte no tiene evidencias.'),
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.photo, color: Colors.blue),
-                label: const Text(
-                  'Ver Evidencias',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    color: Colors.blue,
-                  ),
-                ),
-              ),
-            ),
-
+           
             const SizedBox(height: 30.0),
 
             // Botones alargados con borde y letras de color

@@ -2,19 +2,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:yardsafety/pantallas/menuRep.dart';
 import 'package:yardsafety/models/rondas.dart';
 import 'package:intl/intl.dart';
+import 'package:yardsafety/pantallas/new_report_screen.dart';
 
 void showRondaModal(BuildContext context, Ronda ronda) {
-  // Obtener la fecha y hora actuales del sistema
   final DateTime now = DateTime.now();
-
-  // Formatear la fecha y hora actual
   final DateFormat formatter = DateFormat('dd-MM-yyyy HH:mm', 'es');
   final String formattedTime = formatter.format(now);
 
-  // Función para iniciar la ronda haciendo una llamada a la API
   Future<void> _iniciarRonda(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
@@ -40,22 +36,27 @@ void showRondaModal(BuildContext context, Ronda ronda) {
         }),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 204 ) {
-      print('Ronda actualizada a estado "En Proceso"');
-      print(' Redirigiendo a MenuReportesPage...');
-          Navigator.of(context).pop(); 
-         Navigator.pushReplacement(
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print('Ronda actualizada a estado "En Proceso"');
+        Navigator.of(context).pop(); // Cierra el modal
+
+        // Navegar al NewReportScreen pasando el rondaId correcto
+        Navigator.push(
           context,
-           MaterialPageRoute(builder: (context) => const MenuReportesPage()),
-          );
-          } else {
-         print(' Error al actualizar la ronda');
-         print('Status code: ${response.statusCode}');
-          print('Body: ${response.body}');
-           ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('Error al actualizar la ronda: ${response.statusCode}')),
-  );
-}
+          MaterialPageRoute(
+            builder: (context) => NewReportScreen(
+              rondaId: ronda.id, // ✅ Aquí pasamos el id correcto
+            ),
+          ),
+        );
+      } else {
+        print('Error al actualizar la ronda');
+        print('Status code: ${response.statusCode}');
+        print('Body: ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar la ronda: ${response.statusCode}')),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error de conexión: $e')),

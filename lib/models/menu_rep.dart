@@ -1,41 +1,42 @@
-// models/menu_rep.dart
-import 'dart:io';
-
 class MenuRep {
   final String id;
-  final String empresa;
-  final String unidad;
-  final String ubicacion;
+  final String tipo; // categoria_reporte_nombre
   final String descripcion;
-  final String tipo;
-  final String gravedad;
-  final String catalogo;
-  final List<File> imagenes;
+  final String ubicacion; // zona_nombre
+  final String unidad; // puede ser null
+  final String empresa; // empresa_reporte (puede ser null)
+  final String gravedad; // status_reporte_nombre (ej: Abierto, Cerrado, etc)
+  final String catalogo; // no lo vi directo, pero podrías meter eventos[0].nombre
+  final List<String> eventos;
 
   MenuRep({
     required this.id,
-    required this.empresa,
-    required this.unidad,
-    required this.ubicacion,
-    required this.descripcion,
     required this.tipo,
+    required this.descripcion,
+    required this.ubicacion,
+    required this.unidad,
+    required this.empresa,
     required this.gravedad,
-     required this.catalogo,
-    required this.imagenes,
-   
+    required this.catalogo,
+    required this.eventos,
   });
 
   factory MenuRep.fromJson(Map<String, dynamic> json) {
     return MenuRep(
       id: json['id'].toString(),
-      empresa: json['empresa'] ?? '',
-      unidad: json['unidad'] ?? '',
-      ubicacion: json['ubicacion'] ?? '',
+      tipo: json['categoria_reporte_nombre'] ?? '',
       descripcion: json['descripcion'] ?? '',
-      tipo: json['tipo'] ?? '',
-      gravedad: json['gravedad'] ?? '',
-      catalogo: json['catalogo'],
-      imagenes: [], // Asumimos que las imágenes no vienen en el GET inicial
+      ubicacion: json['ubicacion']?['zona_nombre'] ?? 'Sin ubicación',
+      unidad: json['unidad'] ?? 'NA',
+      empresa: json['empresa_reporte'] ?? 'NA',
+      gravedad: json['status_reporte_nombre'] ?? 'Desconocida',
+      catalogo: (json['eventos'] != null && json['eventos'].isNotEmpty)
+          ? json['eventos'][0]['nombre'] ?? ''
+          : '',
+      eventos: (json['eventos'] as List<dynamic>?)
+              ?.map((e) => e['nombre'].toString())
+              .toList() ??
+          [],
     );
   }
 }
