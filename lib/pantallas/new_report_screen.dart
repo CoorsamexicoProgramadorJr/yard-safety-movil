@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yardsafety/widgets/custom_text_field.dart';
-
 
 class NewReportScreen extends StatefulWidget {
   final int rondaId; // ID de la ronda seleccionada
@@ -35,8 +35,16 @@ class _NewReportScreenState extends State<NewReportScreen> {
   }
 
   Future<void> fetchCatalogoPeligros() async {
-    final response = await http.get(Uri.parse(
-        'http://yard-safety-web.test/api/v1/select/catalogo-peligros'));
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+
+    final response = await http.get(
+      Uri.parse('http://yard-safety-web.test/api/v1/select/catalogo-peligros'),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
     if (response.statusCode == 200) {
       setState(() {
         catalogoPeligros = json.decode(response.body)['data'];
@@ -69,8 +77,9 @@ class _NewReportScreenState extends State<NewReportScreen> {
       "tipo_unidad_id": tipoUnidadController.text.isEmpty
           ? null
           : int.tryParse(tipoUnidadController.text),
-      "empresa_id":
-          empresaController.text.isEmpty ? null : int.tryParse(empresaController.text),
+      "empresa_id": empresaController.text.isEmpty
+          ? null
+          : int.tryParse(empresaController.text),
       "descripcion": descripcionController.text,
     };
 
@@ -112,9 +121,10 @@ class _NewReportScreenState extends State<NewReportScreen> {
             ? const Center(child: CircularProgressIndicator())
             : ListView(
                 children: [
-                  const Text('Selecciona los peligros:',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Selecciona los peligros:',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   ...catalogoPeligros.map((p) {
                     final id = p['id'];
                     final nombre = p['nombre'];
