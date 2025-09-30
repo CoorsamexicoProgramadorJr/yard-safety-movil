@@ -33,9 +33,9 @@ class _NewReportScreenState extends State<NewReportScreen> {
     'tipoUnidad': null,
     'empresa': null,
   };
-  
+
   // Lista de condiciones inseguras cargadas para el peligro seleccionado
-  List<dynamic> _condicionesInseguras = []; 
+  List<dynamic> _condicionesInseguras = [];
 
   final Map<String, TextEditingController> _controllers = {
     'ubicacion': TextEditingController(),
@@ -128,7 +128,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _showSnackbar('Selecciona un peligro');
       return;
     }
-    
+
     // Validación de condiciones inseguras si existen
     if (_selectedCondicionesInseguras.isEmpty && _condicionesInseguras.isNotEmpty) {
       _showSnackbar('Selecciona al menos una condición insegura');
@@ -157,8 +157,9 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final response = await http.post(
       Uri.parse('http://yard-safety-web.test/api/v1/reportes'),
       headers: {
-      "Content-Type": "application/json",
-       "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+        "Acept": "application/json",
+        "Authorization": "Bearer $token",
        },
       body: json.encode(body),
     );
@@ -232,7 +233,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
             ),
     );
   }
-  
+
   // Widget para todos los catálogos (Peligro, Zona, Empresa, etc.) usando CustomDropdown
   Widget _buildDropdownCatalog(String label, String key) {
     final List<dynamic>? items = _apiData[key];
@@ -297,7 +298,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         ),
       );
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

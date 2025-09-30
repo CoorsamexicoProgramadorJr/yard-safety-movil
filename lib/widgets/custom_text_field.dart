@@ -5,12 +5,14 @@ class CustomTextField extends StatelessWidget {
   final Widget label;
   final String hint;
   final bool isDashed;
+  final TextEditingController controller;
 
   const CustomTextField({
     super.key,
     required this.label,
     required this.hint,
-    this.isDashed = false, required TextEditingController controller,
+    required this.controller,
+    this.isDashed = false,
   });
 
   @override
@@ -28,7 +30,8 @@ class CustomTextField extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                     child: TextField(
-                        maxLines: null,
+                      controller: controller,
+                      maxLines: null,
                       keyboardType: TextInputType.multiline,
                       decoration: InputDecoration(
                         hintText: hint,
@@ -45,6 +48,7 @@ class CustomTextField extends StatelessWidget {
                     border: Border.all(color: const Color(0xFFAAAAAA)),
                   ),
                   child: TextField(
+                    controller: controller,
                     decoration: InputDecoration(
                       hintText: hint,
                       border: InputBorder.none,
