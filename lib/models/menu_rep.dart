@@ -27,8 +27,8 @@ class MenuRep {
       tipo: json['categoria_reporte_nombre'] ?? '',
       descripcion: json['descripcion'] ?? '',
       ubicacion: json['ubicacion']?['zona_nombre'] ?? 'Sin ubicación',
-      unidad: json['unidad'] ?? 'NA',
-      empresa: json['empresa_reporte'] ?? 'NA',
+      unidad: json['unidad'] != null ? json['unidad']['numero_economico']?.toString() ?? 'NA' : 'NA',
+      empresa: json['empresa_reporte'] != null ? json['empresa_reporte']['empresa_reporte']?.toString() ?? 'NA' : 'NA',
       gravedad: json['status_reporte_nombre'] ?? 'Desconocida',
       catalogo: (json['eventos'] != null && json['eventos'].isNotEmpty)
           ? json['eventos'][0]['nombre'] ?? ''

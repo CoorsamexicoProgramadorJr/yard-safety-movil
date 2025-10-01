@@ -4,7 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 // Asegúrate de que estas rutas sean correctas
 import 'package:yardsafety/widgets/custom_text_field.dart'; 
-import 'package:yardsafety/widgets/custom_dropdown.dart'; 
+import 'package:yardsafety/widgets/custom_dropdown.dart';
+
+import '../config/app_config.dart';
 
 class NewReportScreen extends StatefulWidget {
   final int rondaId; // ID de la ronda seleccionada
@@ -76,7 +78,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
     final response = await http.get(
-      Uri.parse('http://yard-safety-web.test/api/v1/$endpoint'),
+      Uri.parse('${AppConfig.baseUrl}/$endpoint'),
       headers: {
         "Content-Type": "application/json",
          "Authorization": "Bearer $token",
@@ -103,7 +105,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final endpoint = 'select/condicion-insegura/$peligroId';
     
     final response = await http.get(
-      Uri.parse('http://yard-safety-web.test/api/v1/$endpoint'),
+      Uri.parse('${AppConfig.baseUrl}/$endpoint'),
       headers: {
         "Content-Type": "application/json", 
         "Authorization": "Bearer $token",
@@ -142,7 +144,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       "catalogo_evento_id": [peligroId],
       "zona_id": _selectedValues['zona'],
       // Condición insegura se envía como una lista de IDs
-      "condicion_insegura_id": _selectedCondicionesInseguras, 
+      "condicion_insegura_id": _selectedCondicionesInseguras,
       "ubicacion_id": _controllers['ubicacion']!.text.isEmpty ? null : int.tryParse(_controllers['ubicacion']!.text),
       "numero_economico": _controllers['numeroEconomico']!.text.isEmpty ? null : _controllers['numeroEconomico']!.text,
       "placa": _controllers['placa']!.text.isEmpty ? null : _controllers['placa']!.text,
@@ -155,7 +157,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final token = prefs.getString('token') ?? '';
     
     final response = await http.post(
-      Uri.parse('http://yard-safety-web.test/api/v1/reportes'),
+      Uri.parse("${AppConfig.baseUrl}/reportes"),
       headers: {
         "Content-Type": "application/json",
         "Acept": "application/json",

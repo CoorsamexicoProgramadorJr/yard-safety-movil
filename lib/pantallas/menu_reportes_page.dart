@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_config.dart';
 import '../models/menu_rep.dart';
 import '../widgets/reporte_card.dart';
 import 'reporte_details_page.dart';
@@ -30,10 +31,11 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
       final token = prefs.getString('token') ?? '';
 
       final response = await http.get(
-        Uri.parse("http://yard-safety-web.test/api/v1/reportes"),
+        Uri.parse("${AppConfig.baseUrl}/reportes"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
+          'Accept': 'application/json'
         },
       );
 

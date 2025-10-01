@@ -4,7 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:ui';
 
-import 'package:yardsafety/pantallas/reportes_page.dart'; // Importación corregida
+import 'package:yardsafety/pantallas/reportes_page.dart';
+
+import '../config/app_config.dart'; // Importación corregida
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -209,8 +211,7 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
       _errorMsg = null;
     });
-
-    final url = Uri.parse('http://yard-safety-web.test/api/v1/login');
+    final url = Uri.parse('${AppConfig.baseUrl}/login');
     final Map<String, String> body = {
       'email': emailController.text.trim(),
       'password': passwordController.text.trim(),

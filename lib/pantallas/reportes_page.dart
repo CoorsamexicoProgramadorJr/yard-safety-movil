@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yardsafety/config/app_config.dart';
 import 'package:yardsafety/models/rondas.dart';
 import 'package:yardsafety/pantallas/login.dart';
 import '../widgets/ronda_card.dart';
@@ -52,14 +53,13 @@ class _ReportesPageState extends State<ReportesPage> {
       return;
     }
 
-    const url = 'http://yard-safety-web.test/api/v1/rondas';
-
     try {
       final response = await http.get(
-        Uri.parse(url),
+        Uri.parse("${AppConfig.baseUrl}/rondas"),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
       );
 
