@@ -230,11 +230,25 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseBody = jsonDecode(response.body);
         final String? token = responseBody['token'];
+        
+        
+        final Map<String, dynamic>? userAuth = responseBody['userAuth'];
+        // --- FIN DE LA MODIFICACIÓN CLAVE ---
 
         if (token != null) {
-          // Guardar el token de manera segura
           final prefs = await SharedPreferences.getInstance();
+          
+          // 1. Guardar el token de manera segura
           await prefs.setString('token', token);
+
+          // 2. Extraer y guardar el nombre completo
+          if (userAuth != null) {
+            final String nombre = userAuth['nombre'] ?? '';
+            final String apellido = userAuth['apellido'] ?? '';
+            final String nombreCompleto = '$nombre $apellido';
+            await prefs.setString('nombreCompleto', nombreCompleto.trim());
+          }
+
 
           if (mounted) {
             // Navegar a la página principal
@@ -269,9 +283,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildOtherLogin() {
-    return Column(
+    return const Column(
       children: [
-        const Text("¿Olvidaste tu contraseña?", style: TextStyle(color: Colors.white)),
+        Text("¿Olvidaste tu contraseña?", style: TextStyle(color: Colors.white)),
         
       ],
     );

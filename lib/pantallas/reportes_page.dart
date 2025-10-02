@@ -7,6 +7,7 @@ import 'package:yardsafety/models/rondas.dart';
 import 'package:yardsafety/pantallas/login.dart';
 import '../widgets/ronda_card.dart';
 import 'new_report_screen.dart';
+import 'package:intl/intl.dart'; // <-- 1. Importar para el formato de fecha
 
 class ReportesPage extends StatefulWidget {
   const ReportesPage({super.key});
@@ -20,15 +21,33 @@ class _ReportesPageState extends State<ReportesPage> {
   List<Ronda> _rondas = [];
   bool _isLoading = true;
   String? _error;
-  int? _selectedRondaId; // <-- ID de la ronda seleccionada
+  int? _selectedRondaId;
+  String _userName = "Usuario"; 
 
   @override
+
   void initState() {
     super.initState();
+    _loadUserData();
     _fetchRondas();
   }
 
+  // <-- 3. Nuevo método para cargar el nombre del usuario
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final String? nombre = prefs.getString('nombreCompleto');
+
+    if (mounted) {
+      setState(() {
+      
+        _userName = nombre ?? 'Usuario';
+      });
+    }
+  }
+
   Future<void> _fetchRondas() async {
+    // ... (Tu código actual de _fetchRondas) ...
     if (!mounted) return;
 
     setState(() {
@@ -109,6 +128,9 @@ class _ReportesPageState extends State<ReportesPage> {
 
   @override
   Widget build(BuildContext context) {
+
+    final String formattedDate = DateFormat('EEEE, d \'de\' MMMM \'de\' y', 'es_ES').format(DateTime.now());
+    
     Widget mainContent;
 
     if (_isLoading) {
@@ -127,11 +149,13 @@ class _ReportesPageState extends State<ReportesPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Bienvenido, Alex',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            // 5. Usar el nombre del usuario cargado
+            Text('Bienvenido, $_userName',
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text('Hoy es Lunes 22 de Julio',
-                style: TextStyle(fontSize: 16, color: Colors.grey)),
+            // 6. Usar la fecha formateada
+            Text('Hoy es ${formattedDate.capitalize()}', // capitalize() para que inicie con mayúscula
+                style: const TextStyle(fontSize: 16, color: Colors.grey)),
             const SizedBox(height: 32),
             const Text('RONDAS',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -165,5 +189,11 @@ class _ReportesPageState extends State<ReportesPage> {
         ],
       ),
     );
+  }
+}
+extension StringExtension on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
