@@ -1,27 +1,45 @@
 import 'package:flutter/material.dart';
-import '../models/menu_rep.dart';
+// Asegúrate de que esta ruta a MenuRep sea correcta.
+import '../models/menu_rep.dart'; 
 import 'package:yardsafety/pantallas/Evidencias.dart';
 import 'package:dotted_border/dotted_border.dart';
 
-// Widget reutilizable para los campos de texto normales
+
+// ===============================================
+// WIDGETS DE SÓLO LECTURA (READ-ONLY)
+// ===============================================
+
+// Widget reutilizable para mostrar valores en estilo de campo de texto normal (NO editable)
 class ReportFormField extends StatelessWidget {
   final String labelText;
-  final String initialValue;
-  final bool isNumeric;
+  final String valueText;
   final TextStyle? labelStyle;
-  final TextStyle? textStyle;
+  final TextStyle? valueStyle;
 
   const ReportFormField({
     Key? key,
     required this.labelText,
-    required this.initialValue,
-    this.isNumeric = false,
+    required this.valueText,
     this.labelStyle,
-    this.textStyle,
+    this.valueStyle,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    // Estilo por defecto para la etiqueta
+    final defaultLabelStyle = labelStyle ??
+        const TextStyle(
+          fontSize: 14.0,
+          color: Color.fromARGB(255, 170, 171, 171),
+        );
+
+    // Estilo por defecto para el valor
+    final defaultValueStyle = valueStyle ??
+        const TextStyle(
+          fontSize: 14.0,
+          color: Color.fromARGB(255, 83, 95, 116),
+        );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -29,33 +47,24 @@ class ReportFormField extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8.0),
           child: Text(
             labelText,
-            style: labelStyle ??
-                const TextStyle(
-                  fontSize: 14.0,
-                  color: Color.fromARGB(255, 170, 171, 171),
-                ),
+            style: defaultLabelStyle,
           ),
         ),
-        TextFormField(
-          initialValue: initialValue,
-          style: textStyle ??
-              const TextStyle(
-                fontSize: 14.0,
-                color: Color.fromARGB(255, 83, 95, 116),
-              ),
-          keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
-          decoration: InputDecoration(
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10.0),
-              borderSide: const BorderSide(
-                color: Color.fromARGB(255, 120, 165, 202),
-                width: .5,
-              ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10.0),
+            color: const Color.fromRGBO(233, 242, 248, 1), // Color de fondo
+            border: Border.all(
+              color: const Color.fromARGB(255, 120, 165, 202), // Borde
+              width: .5,
             ),
-            filled: true,
-            fillColor: const Color.fromRGBO(233, 242, 248, 1),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          ),
+          child: Text(
+            // Muestra 'N/A' si el valor está vacío
+            valueText.isEmpty ? 'N/A' : valueText, 
+            style: defaultValueStyle,
           ),
         ),
       ],
@@ -63,15 +72,15 @@ class ReportFormField extends StatelessWidget {
   }
 }
 
-// Nuevo widget con borde punteado compatible
+// Widget para mostrar valores con borde punteado (NO editable)
 class CustomTextField extends StatelessWidget {
   final String label;
-  final String hint;
+  final String value;
 
   const CustomTextField({
     super.key,
     required this.label,
-    required this.hint,
+    required this.value,
   });
 
   @override
@@ -85,12 +94,18 @@ class CustomTextField extends StatelessWidget {
               style: const TextStyle(fontSize: 10, color: Colors.black54)),
           const SizedBox(height: 8),
           DottedBorder(
+            // **¡CORRECCIÓN! Se elimina el parámetro 'dashPattern' que causa el error.**
+            // Ahora solo se pasa el widget hijo.
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              child: TextFormField(
-                initialValue: hint,
-                decoration: const InputDecoration(border: InputBorder.none),
+              color: Colors.white, // Fondo del área de valor
+              child: Text(
+                value.isEmpty ? 'N/A' : value,
+                style: const TextStyle(
+                  fontSize: 14.0,
+                  color: Color.fromARGB(255, 83, 95, 116),
+                ),
               ),
             ),
           ),
@@ -100,7 +115,7 @@ class CustomTextField extends StatelessWidget {
   }
 }
 
-// Página de detalles del reporte
+
 class ReporteDetailsPage extends StatelessWidget {
   final MenuRep reporte;
 
@@ -124,49 +139,87 @@ class ReporteDetailsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- Campos con datos del Reporte ---
+
             ReportFormField(
-              labelText: 'Zona:',
-              initialValue: reporte.ubicacion,
+              labelText: 'ID del Reporte:',
+              valueText: reporte.id,
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
-              labelText: 'Estacionamiento:',
-              initialValue: '25',
+              labelText: 'Zona:',
+              valueText: reporte.ubicacion, // <- Dato del reporte
             ),
+            const SizedBox(height: 20.0),
+           
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Empresa:',
-              initialValue: reporte.empresa,
+              valueText: reporte.empresa, // <- Dato del reporte
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
-              labelText: 'Tipo de Unidad:',
-              initialValue: reporte.unidad,
+              labelText: 'Tipo de Reporte:',
+              valueText: reporte.tipo, // <- Dato del reporte
             ),
             const SizedBox(height: 20.0),
-
-            // Campos con CustomTextField
-            const CustomTextField(
-              label: 'Número Económico:',
-              hint: '12345',
+            ReportFormField(
+              labelText: 'Gravedad (Status):',
+              valueText: reporte.gravedad, // <- Dato del reporte
             ),
+            const SizedBox(height: 20.0),
+            ReportFormField(
+              labelText: 'Catálogo (Evento Principal):',
+              valueText: reporte.catalogo, // <- Dato del reporte
+            ),
+            const SizedBox(height: 20.0),
+            
+            // Usamos el campo 'unidad' que contiene el número económico
+            CustomTextField(
+              label: 'Número Económico:',
+              value: reporte.unidad, // <- Dato del reporte
+            ),
+            
+            // Las placas no están en MenuRep, usamos un valor placeholder
             const CustomTextField(
               label: 'Placas de Unidad:',
-              hint: 'XXX-XXX-XX',
+              value: 'No especificado en reporte',
             ),
 
             const SizedBox(height: 20.0),
             const Text(
-              'Evidencias:',
+              'Descripción del Reporte:',
               style: TextStyle(
                 fontSize: 16.0,
                 fontWeight: FontWeight.bold,
               ),
             ),
-           
+            const SizedBox(height: 8.0),
+            // Muestra la descripción
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: Text(
+                reporte.descripcion.isEmpty ? 'Sin descripción detallada.' : reporte.descripcion, // <- Dato del reporte
+                style: const TextStyle(
+                  fontSize: 14.0,
+                  color: Color.fromARGB(255, 83, 95, 116),
+                ),
+              ),
+            ),
+            
             const SizedBox(height: 30.0),
 
-            // Botones alargados con borde y letras de color
+            // --- Botones de Acción ---
+            
+            const Text(
+              'Acciones:',
+              style: TextStyle(
+                fontSize: 16.0,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 15.0),
+
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -178,9 +231,15 @@ class ReporteDetailsPage extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                     // Lógica para ir a la pantalla de Evidencias
+                    // Navigator.push(
+                    //   context,
+                    //   MaterialPageRoute(builder: (context) => EvidenciasScreen(reporteId: reporte.id)),
+                    // );
+                  },
                   child: const Text(
-                    "Emitir de nuevo",
+                    "Ver Evidencias",
                     style: TextStyle(color: Colors.blue, fontSize: 16),
                   ),
                 ),
@@ -195,7 +254,7 @@ class ReporteDetailsPage extends StatelessWidget {
                   ),
                   onPressed: () {},
                   child: const Text(
-                    "Acción 2",
+                    "Emitir de nuevo",
                     style: TextStyle(color: Colors.green, fontSize: 16),
                   ),
                 ),
@@ -210,7 +269,7 @@ class ReporteDetailsPage extends StatelessWidget {
                   ),
                   onPressed: () {},
                   child: const Text(
-                    "Acción 3",
+                    "Cerrar Reporte",
                     style: TextStyle(color: Colors.red, fontSize: 16),
                   ),
                 ),
