@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
 // Asegúrate de que estas rutas sean correctas
 import 'package:yardsafety/widgets/custom_text_field.dart'; 
 import 'package:yardsafety/widgets/custom_dropdown.dart';
+import 'package:yardsafety/widgets/image_input.dart';
 
 import '../config/app_config.dart';
 
@@ -45,6 +47,9 @@ class _NewReportScreenState extends State<NewReportScreen> {
     'placa': TextEditingController(),
     'descripcion': TextEditingController(),
   };
+  
+  // Lista para almacenar las imágenes seleccionadas
+  final List<File> _selectedImages = [];
 
   @override
   void initState() {
@@ -128,6 +133,11 @@ class _NewReportScreenState extends State<NewReportScreen> {
 
     if (peligroId == null) {
       _showSnackbar('Selecciona un peligro');
+      return;
+    }
+
+    if (_selectedImages.isEmpty) {
+      _showSnackbar('Por favor, agrega al menos una imagen');
       return;
     }
 
@@ -223,6 +233,17 @@ class _NewReportScreenState extends State<NewReportScreen> {
                   _buildDropdownCatalog('Empresa ID (opcional)', 'empresa'),
                   
                   _buildTextField('Descripción', 'descripcion', isDashed: true),
+                  const SizedBox(height: 16),
+                  // Componente para subir imágenes
+                  ImageInput(
+                    images: _selectedImages,
+                    onImagesChanged: (images) {
+                      setState(() {
+                        _selectedImages.clear();
+                        _selectedImages.addAll(images);
+                      });
+                    },
+                  ),
                   const SizedBox(height: 20),
                   Center(
                     child: ElevatedButton(
