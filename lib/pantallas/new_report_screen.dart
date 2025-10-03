@@ -141,53 +141,67 @@ class _NewReportScreenState extends State<NewReportScreen> {
       return;
     }
 
-    // Validación de condiciones inseguras si existen
     if (_selectedCondicionesInseguras.isEmpty && _condicionesInseguras.isNotEmpty) {
       _showSnackbar('Selecciona al menos una condición insegura');
       return;
     }
 
-    // Mapeo del body. Nota: 'catalogo_evento_id' debe ser una lista, por eso usamos [peligroId]
-    final body = {
-      "ronda_ejecutada_id": widget.rondaId,
-      "categoria_reporte_id": _selectedValues['categoriaReporte'],
-      "catalogo_evento_id": [peligroId],
-      "zona_id": _selectedValues['zona'],
-      // Condición insegura se envía como una lista de IDs
-      "condicion_insegura_id": _selectedCondicionesInseguras,
-      "ubicacion_id": _controllers['ubicacion']!.text.isEmpty ? null : int.tryParse(_controllers['ubicacion']!.text),
-      "numero_economico": _controllers['numeroEconomico']!.text.isEmpty ? null : _controllers['numeroEconomico']!.text,
-      "placa": _controllers['placa']!.text.isEmpty ? null : _controllers['placa']!.text,
-      "tipo_unidad_id": _selectedValues['tipoUnidad'],
-      "empresa_id": _selectedValues['empresa'],
-      "descripcion": _controllers['descripcion']!.text,
-    };
-
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
-    
-    final response = await http.post(
-      Uri.parse("${AppConfig.baseUrl}/reportes"),
-      headers: {
-        "Content-Type": "application/json",
-        "Acept": "application/json",
-        "Authorization": "Bearer $token",
-       },
-      body: json.encode(body),
-    );
+
+    // Preparamos la petición como multipart
+    final uri = Uri.parse("${AppConfig.baseUrl}/reportes");
+    final request = http.MultipartRequest("POST", uri);
+
+    // Headers
+    request.headers.addAll({
+      "Authorization": "Bearer $token",
+      "Accept": "application/json",
+    });
+
+    // Campos normales
+    request.fields['ronda_ejecutada_id'] = widget.rondaId.toString();
+    request.fields['categoria_reporte_id'] = _selectedValues['categoriaReporte']?.toString() ?? '';
+    request.fields['zona_id'] = _selectedValues['zona']?.toString() ?? '';
+    request.fields['tipo_unidad_id'] = _selectedValues['tipoUnidad']?.toString() ?? '';
+    request.fields['empresa_id'] = _selectedValues['empresa']?.toString() ?? '';
+    request.fields['descripcion'] = _controllers['descripcion']!.text;
+
+    // Array de IDs
+    request.fields['catalogo_evento_id[]'] = peligroId.toString();
+    for (var id in _selectedCondicionesInseguras) {
+      request.fields['condicion_insegura_id[]'] = id.toString();
+    }
+
+    // Opcionales
+    if (_controllers['ubicacion']!.text.isNotEmpty) {
+      request.fields['ubicacion_id'] = _controllers['ubicacion']!.text;
+    }
+    if (_controllers['numeroEconomico']!.text.isNotEmpty) {
+      request.fields['numero_economico'] = _controllers['numeroEconomico']!.text;
+    }
+    if (_controllers['placa']!.text.isNotEmpty) {
+      request.fields['placa'] = _controllers['placa']!.text;
+    }
+
+    // 👇 Agregar imágenes como archivos
+    for (int i = 0; i < _selectedImages.length; i++) {
+      final image = _selectedImages[i];
+      request.files.add(await http.MultipartFile.fromPath(
+        'imagenes[]',
+        image.path,
+      ));
+    }
+
+    // Enviar
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       _showSnackbar('Reporte creado correctamente!');
       if (widget.onBack != null) widget.onBack!();
     } else {
-      String errorMessage = 'Error al crear el reporte';
-      try {
-        final errorJson = json.decode(response.body);
-        errorMessage += ': ${errorJson['message'] ?? response.statusCode}';
-      } catch (e) {
-        // No se pudo decodificar el cuerpo
-      }
-      _showSnackbar(errorMessage);
+      _showSnackbar('Error al crear el reporte: ${response.body}');
       print(response.body);
     }
   }
