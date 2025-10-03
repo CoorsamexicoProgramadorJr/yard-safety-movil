@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yardsafety/config/app_config.dart';
 import 'package:yardsafety/models/rondas.dart';
 import 'package:intl/intl.dart';
 import 'package:yardsafety/pantallas/new_report_screen.dart';
@@ -22,7 +23,7 @@ void showRondaModal(BuildContext context, Ronda ronda) {
       return;
     }
 
-    final url = 'http://yard-safety-web.test/api/v1/rondas/${ronda.id}';
+    final url = '${AppConfig.baseUrl}/rondas/${ronda.id}';
 
     try {
       final response = await http.put(
