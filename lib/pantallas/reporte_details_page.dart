@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-// Asegúrate de que esta ruta a MenuRep sea correcta.
-import '../models/menu_rep.dart'; 
-import 'package:yardsafety/pantallas/Evidencias.dart';
-import 'package:dotted_border/dotted_border.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as path;
 
+// Asegúrate de que esta ruta a MenuRep sea correcta.
+import '../models/menu_rep.dart';
+import 'package:dotted_border/dotted_border.dart';
+import '../widgets/image_input.dart';
+import '../config/app_config.dart'; // Asegúrate de que esta ruta sea correcta
 
 // ===============================================
 // WIDGETS DE SÓLO LECTURA (READ-ONLY)
@@ -63,7 +68,7 @@ class ReportFormField extends StatelessWidget {
           ),
           child: Text(
             // Muestra 'N/A' si el valor está vacío
-            valueText.isEmpty ? 'N/A' : valueText, 
+            valueText.isEmpty ? 'N/A' : valueText,
             style: defaultValueStyle,
           ),
         ),
@@ -115,12 +120,131 @@ class CustomTextField extends StatelessWidget {
   }
 }
 
-
-class ReporteDetailsPage extends StatelessWidget {
+class ReporteDetailsPage extends StatefulWidget {
   final MenuRep reporte;
 
-  const ReporteDetailsPage({Key? key, required this.reporte})
-      : super(key: key);
+  const ReporteDetailsPage({Key? key, required this.reporte}) : super(key: key);
+
+  @override
+  _ReporteDetailsPageState createState() => _ReporteDetailsPageState();
+}
+
+class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
+  final List<File> _selectedImages = [];
+  bool _isLoading = false;
+  final TextEditingController _descripcionController = TextEditingController();
+
+  Future<void> _submitReport(String action) async {
+    if (_selectedImages.isEmpty) {
+      _showSnackBar('Por favor, selecciona al menos una imagen');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      late Uri uri;
+
+      // Endpoint según acción
+      if (action == "reenviar") {
+        uri = Uri.parse("${AppConfig.baseUrl}/reportes/${widget.reporte.id}");
+      } else if (action == "noEncontrado") {
+        uri = Uri.parse(
+            "${AppConfig.baseUrl}/reportes/no-encontrado/${widget.reporte.id}");
+      } else if (action == "solucionado") {
+        uri = Uri.parse(
+            "${AppConfig.baseUrl}/reportes/solucionado/${widget.reporte.id}");
+      } else {
+        throw Exception("Acción no soportada");
+      }
+
+      final request = http.MultipartRequest("POST", uri);
+
+      // Headers
+      request.headers.addAll({
+        "Authorization": "Bearer $token",
+        "Accept": "application/json",
+      });
+
+      request.fields['_method'] = 'PUT';
+      request.fields['ronda_ejecutada_id'] = '1';
+      request.fields['zona_id'] = '1';
+      request.fields['ubicacion_id'] = '';
+
+      if (action == "reenviar") {
+        request.fields['descripcion'] = _descripcionController.text.isNotEmpty
+            ? _descripcionController.text
+            : 'Este es un reporte reenviado automáticamente desde la aplicación móvil';
+      }
+
+      if (action == "noEncontrado") {
+        request.fields['descripcion'] = _descripcionController.text.isNotEmpty
+            ? _descripcionController.text
+            : 'Estatus actualizado: NO ENCONTRADO';
+      }
+
+      if (action == "solucionado") {
+        request.fields['descripcion'] = _descripcionController.text.isNotEmpty
+            ? _descripcionController.text
+            : 'Estatus actualizado: NO ENCONTRADO';
+      }
+
+      // Imágenes (común a todas las acciones)
+      for (var image in _selectedImages) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'imagenes[]',
+          image.path,
+          filename: path.basename(image.path),
+        ));
+      }
+
+      print("Enviando campos: ${request.fields}");
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      print("Body: ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        _showSnackBar('Acción "$action" realizada con éxito');
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      } else {
+        throw Exception('Error al enviar reporte: ${response.body}');
+      }
+    } catch (e) {
+      _showSnackBar('Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _descripcionController.text = widget.reporte.descripcion;
+  }
+
+  @override
+  void dispose() {
+    _descripcionController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,7 +256,7 @@ class ReporteDetailsPage extends StatelessWidget {
             Navigator.pop(context);
           },
         ),
-        title: Text('Reporte (${reporte.id})'),
+        title: Text('Reporte (${widget.reporte.id})'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(40.0),
@@ -140,52 +264,44 @@ class ReporteDetailsPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- Campos con datos del Reporte ---
-
             ReportFormField(
               labelText: 'ID del Reporte:',
-              valueText: reporte.id,
+              valueText: widget.reporte.id,
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Zona:',
-              valueText: reporte.ubicacion, // <- Dato del reporte
+              valueText: widget.reporte.ubicacion, // <- Dato del reporte
             ),
-            const SizedBox(height: 20.0),
-           
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Empresa:',
-              valueText: reporte.empresa, // <- Dato del reporte
+              valueText: widget.reporte.empresa, // <- Dato del reporte
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Tipo de Reporte:',
-              valueText: reporte.tipo, // <- Dato del reporte
+              valueText: widget.reporte.tipo, // <- Dato del reporte
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Gravedad (Status):',
-              valueText: reporte.gravedad, // <- Dato del reporte
+              valueText: widget.reporte.gravedad, // <- Dato del reporte
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Catálogo (Evento Principal):',
-              valueText: reporte.catalogo, // <- Dato del reporte
+              valueText: widget.reporte.catalogo, // <- Dato del reporte
             ),
             const SizedBox(height: 20.0),
-            
-            // Usamos el campo 'unidad' que contiene el número económico
             CustomTextField(
               label: 'Número Económico:',
-              value: reporte.unidad, // <- Dato del reporte
+              value: widget.reporte.unidad, // <- Dato del reporte
             ),
-            
-            // Las placas no están en MenuRep, usamos un valor placeholder
             const CustomTextField(
               label: 'Placas de Unidad:',
               value: 'No especificado en reporte',
             ),
-
             const SizedBox(height: 20.0),
             const Text(
               'Descripción del Reporte:',
@@ -195,22 +311,20 @@ class ReporteDetailsPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8.0),
-            // Muestra la descripción
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4.0),
               child: Text(
-                reporte.descripcion.isEmpty ? 'Sin descripción detallada.' : reporte.descripcion, // <- Dato del reporte
+                widget.reporte.descripcion.isEmpty
+                    ? 'Sin descripción detallada.'
+                    : widget.reporte.descripcion, // <- Dato del reporte
                 style: const TextStyle(
                   fontSize: 14.0,
                   color: Color.fromARGB(255, 83, 95, 116),
                 ),
               ),
             ),
-            
             const SizedBox(height: 30.0),
-
             // --- Botones de Acción ---
-            
             const Text(
               'Acciones:',
               style: TextStyle(
@@ -219,10 +333,21 @@ class ReporteDetailsPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 15.0),
-
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SizedBox(height: 12),
+                // Componente para subir imágenes
+                ImageInput(
+                  images: _selectedImages,
+                  onImagesChanged: (images) {
+                    setState(() {
+                      _selectedImages.clear();
+                      _selectedImages.addAll(images);
+                    });
+                  },
+                ),
+                const SizedBox(height: 20),
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.blue, width: 1.5),
@@ -231,53 +356,47 @@ class ReporteDetailsPage extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {
-                     // Lógica para ir a la pantalla de Evidencias
-                    // Navigator.push(
-                    //   context,
-                    //   MaterialPageRoute(builder: (context) => EvidenciasScreen(reporteId: reporte.id)),
-                    // );
-                  },
-                  child: const Text(
-                    "Ver Evidencias",
-                    style: TextStyle(color: Colors.blue, fontSize: 16),
-                  ),
+                  onPressed: _isLoading ? null : () => _submitReport("reenviar"),
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text("Emitir de nuevo"),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.green, width: 1.5),
+                    side: const BorderSide(color: Colors.blue, width: 1.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {},
-                  child: const Text(
-                    "Emitir de nuevo",
-                    style: TextStyle(color: Colors.green, fontSize: 16),
-                  ),
+                  onPressed: _isLoading ? null : () => _submitReport("noEncontrado"),
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text("No Encontrado"),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.red, width: 1.5),
+                    side: const BorderSide(color: Colors.deepOrangeAccent, width: 1.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {},
-                  child: const Text(
-                    "Cerrar Reporte",
-                    style: TextStyle(color: Colors.red, fontSize: 16),
-                  ),
+                  onPressed: _isLoading ? null : () => _submitReport("solucionado"),
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text("Solucionado"),
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ],
-        ),
-      ),
+        )
+        ,
+      )
+      ,
     );
   }
 }
