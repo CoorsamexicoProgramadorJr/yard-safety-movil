@@ -42,7 +42,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
   List<dynamic> _condicionesInseguras = [];
 
   final Map<String, TextEditingController> _controllers = {
-    'ubicacion': TextEditingController(),
+   
     'numeroEconomico': TextEditingController(),
     'placa': TextEditingController(),
     'descripcion': TextEditingController(),
@@ -174,9 +174,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
     }
 
     // Opcionales
-    if (_controllers['ubicacion']!.text.isNotEmpty) {
-      request.fields['ubicacion_id'] = _controllers['ubicacion']!.text;
-    }
+    
     if (_controllers['numeroEconomico']!.text.isNotEmpty) {
       request.fields['numero_economico'] = _controllers['numeroEconomico']!.text;
     }
@@ -184,7 +182,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       request.fields['placa'] = _controllers['placa']!.text;
     }
 
-    // 👇 Agregar imágenes como archivos
+    // Agregar imágenes como archivos
     for (int i = 0; i < _selectedImages.length; i++) {
       final image = _selectedImages[i];
       request.files.add(await http.MultipartFile.fromPath(
@@ -199,7 +197,15 @@ class _NewReportScreenState extends State<NewReportScreen> {
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       _showSnackbar('Reporte creado correctamente!');
-      if (widget.onBack != null) widget.onBack!();
+      
+      // 1. Llama al callback para que la pantalla anterior pueda actualizar su lista.
+      if (widget.onBack != null) {
+        widget.onBack!();
+      } 
+      
+      // 2. Cierra la pantalla actual y vuelve a la anterior.
+      Navigator.pop(context); 
+
     } else {
       _showSnackbar('Error al crear el reporte: ${response.body}');
       print(response.body);
@@ -238,7 +244,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
                   _buildDropdownCatalog('Zona', 'zona'),
                   
                   // Text Fields
-                  _buildTextField('ID de Ubicación (opcional)', 'ubicacion'),
+                  
                   _buildTextField('Número Económico (opcional)', 'numeroEconomico'),
                   _buildTextField('Placa (opcional)', 'placa'),
                   
