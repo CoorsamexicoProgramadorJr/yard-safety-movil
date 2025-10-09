@@ -225,6 +225,7 @@ class _LoginPageState extends State<LoginPage> {
         },
         body: jsonEncode(body),
       );
+      print(response);
 
       // Verificamos si la respuesta es exitosa
       if (response.statusCode == 200) {
