@@ -46,7 +46,7 @@ void showRondaModal(BuildContext context, Ronda ronda) {
           context,
           MaterialPageRoute(
             builder: (context) => NewReportScreen(
-              rondaId: ronda.id, // ✅ Aquí pasamos el id correcto
+              rondaId: ronda.rondaEjecutadaId, // Usar el ID de la ronda ejecutada
             ),
           ),
         );

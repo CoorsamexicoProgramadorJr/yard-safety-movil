@@ -22,7 +22,7 @@ class NewReportScreen extends StatefulWidget {
 
 class _NewReportScreenState extends State<NewReportScreen> {
   bool _isLoading = true;
-  
+
   // Lista de IDs para las Condiciones Inseguras (Checkbox)
   List<int> _selectedCondicionesInseguras = []; 
   
@@ -192,6 +192,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
     }
 
     // Enviar
+    print(request.fields);
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 

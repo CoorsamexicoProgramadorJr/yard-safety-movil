@@ -10,6 +10,7 @@ import '../widgets/ronda_card.dart';
 import 'new_report_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:dart_pusher_channels/dart_pusher_channels.dart';
+import 'package:yardsafety/config/pusher_config.dart';
 
 class ReportesPage extends StatefulWidget {
   const ReportesPage({super.key});
@@ -49,8 +50,8 @@ class _ReportesPageState extends State<ReportesPage> {
 
     const pusherOptions = PusherChannelsOptions.fromCluster(
       scheme: 'wss',
-      cluster: 'mt1',
-      key: '1494bbfacf7672ef5e1a',
+      cluster: '${PusherConfig.cluster}',
+      key: '${PusherConfig.key}',
       port: 443,
     );
 
@@ -235,7 +236,7 @@ class _ReportesPageState extends State<ReportesPage> {
                   .map(
                     (r) => RondaCard(
                   ronda: r,
-                  onTap: () => _openNewReportScreen(r.id),
+                  onTap: () => _openNewReportScreen(r.rondaEjecutadaId),
                 ),
               )
                   .toList(),

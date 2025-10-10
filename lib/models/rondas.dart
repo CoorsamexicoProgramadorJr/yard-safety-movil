@@ -2,6 +2,7 @@
 
 class Ronda {
   final int id;
+  final int rondaEjecutadaId;
   final String nombre;
   final String? horaInicio;
   final String? horaFin;
@@ -12,6 +13,7 @@ class Ronda {
 
   Ronda({
     required this.id,
+    required this.rondaEjecutadaId,
     required this.nombre,
     this.horaInicio,
     this.horaFin,
@@ -26,6 +28,7 @@ class Ronda {
   factory Ronda.fromJson(Map<String, dynamic> json) {
     return Ronda(
       id: json['catalogo_ronda_id'] as int,
+      rondaEjecutadaId: json['ronda_ejecutada_id'] as int,
       nombre: json['catalogo_ronda_nombre'] as String,
       horaInicio: json['ronda_ejecutada_hora_inicio'] as String?,
       horaFin: json['ronda_ejecutada_hora_fin'] as String?,
@@ -41,6 +44,7 @@ class Ronda {
   factory Ronda.fromPusherEvent(Map<String, dynamic> json) {
     return Ronda(
       id: json['catalogo_ronda_id'] as int,
+      rondaEjecutadaId: json['ronda_ejecutada_id'] as int,
       nombre: json['catalogo_ronda_nombre'] as String,
       horaInicio: json['ronda_ejecutada_hora_inicio'] as String?,
       horaFin: json['ronda_ejecutada_hora_fin'] as String?,
