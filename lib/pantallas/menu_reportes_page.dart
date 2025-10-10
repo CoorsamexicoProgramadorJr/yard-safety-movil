@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yardsafety/pantallas/login.dart';
 import '../config/app_config.dart';
 import '../models/menu_rep.dart';
 import '../widgets/reporte_card.dart';
@@ -63,6 +64,21 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
       });
     }
   }
+    // ===============================================
+  // FUNCIÓN PARA CERRAR SESIÓN
+  // ===============================================
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 1. Eliminar el token de autenticación
+    await prefs.remove('token'); // O usa prefs.clear() para eliminar todos los datos
+    
+    // 2. Navegar a la pantalla de Login y eliminar todas las rutas anteriores
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+      (Route<dynamic> route) => false, // La condición 'false' borra toda la pila de navegación
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +91,16 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
+        // ===============================================
+        // AGREGANDO EL BOTÓN DE CERRAR SESIÓN
+        // ===============================================
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar Sesión',
+            onPressed: _logout, // Llamamos a la nueva función de logout
+          ),
+        ],
       ),
       body: cargando
           ? const Center(child: CircularProgressIndicator())
@@ -102,13 +128,13 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           // Aquí debes decidir qué rondaId usar. Por ejemplo 1 como placeholder.
-          final int rondaIdSeleccionada = 1;
+          final int rondaEjecutadaId = 0;
 
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => NewReportScreen(
-                rondaId: rondaIdSeleccionada,
+                rondaId: rondaEjecutadaId,
                 onBack: () {
                   Navigator.pop(context);
                   _cargarReportes(); // recarga la lista al regresar
