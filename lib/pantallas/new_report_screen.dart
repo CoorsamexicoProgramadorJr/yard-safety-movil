@@ -246,12 +246,12 @@ class _NewReportScreenState extends State<NewReportScreen> {
                   
                   // Text Fields
                   
-                  _buildTextField('Número Económico (opcional)', 'numeroEconomico'),
-                  _buildTextField('Placa (opcional)', 'placa'),
+                  _buildTextField('Número Económico ', 'numeroEconomico'),
+                  _buildTextField('Placa ', 'placa'),
                   
                   // Más Dropdowns
-                  _buildDropdownCatalog('Tipo de Unidad ID (opcional)', 'tipoUnidad'),
-                  _buildDropdownCatalog('Empresa ID (opcional)', 'empresa'),
+                  _buildDropdownCatalog('Tipo de Unidad ', 'tipoUnidad'),
+                  _buildDropdownCatalog('Empresa ', 'empresa'),
                   
                   _buildTextField('Descripción', 'descripcion', isDashed: true),
                   const SizedBox(height: 16),

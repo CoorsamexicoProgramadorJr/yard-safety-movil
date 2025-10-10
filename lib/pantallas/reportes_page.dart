@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yardsafety/config/app_config.dart';
-import 'package:yardsafety/models/rondas.dart'; // Asegúrate de que la ruta sea correcta
-import 'package:yardsafety/pantallas/login.dart';
+import 'package:yardsafety/models/rondas.dart'; 
+import 'package:yardsafety/pantallas/login.dart'; 
 import '../widgets/ronda_card.dart';
 import 'new_report_screen.dart';
 import 'package:intl/intl.dart';
@@ -33,6 +33,8 @@ class _ReportesPageState extends State<ReportesPage> {
   @override
   void initState() {
     super.initState();
+    // Inicializar 'es_ES' para el formato de fecha, si no está globalmente
+    Intl.defaultLocale = 'es_ES'; 
     _loadUserData();
     _fetchRondas();
     _initPusher();
@@ -79,19 +81,24 @@ class _ReportesPageState extends State<ReportesPage> {
 
           final rondaActualizada = Ronda.fromPusherEvent(eventData);
 
+          // La ronda está activa si el status enviado por Pusher es 1
           final esActiva = (eventData['catalogo_ronda_status'] as int? ?? 0) == 1;
 
           setState(() {
             final index = _rondas.indexWhere((ronda) => ronda.id == rondaActualizada.id);
 
             if (index != -1) {
-              if (esActiva) {
-                _rondas[index] = rondaActualizada;
-              } else {
-                _rondas.removeAt(index);
-              }
+                // La ronda existe en la lista
+                if (esActiva) {
+                    // Si sigue activa, solo se actualiza (ej: cambio de hora o statusRondaId)
+                    _rondas[index] = rondaActualizada;
+                } else {
+                    // Si ya no está activa (Finalizada/Eliminada), se remueve de la lista
+                    _rondas.removeAt(index);
+                }
             } else if (esActiva) {
-              _rondas.insert(0, rondaActualizada);
+                // Nueva ronda activa, se inserta al inicio
+                _rondas.insert(0, rondaActualizada);
             }
           });
 
@@ -125,7 +132,6 @@ class _ReportesPageState extends State<ReportesPage> {
       setState(() => _isLoading = true);
     }
     _error = null;
-
 
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
@@ -183,6 +189,98 @@ class _ReportesPageState extends State<ReportesPage> {
     }
   }
 
+  // ===============================================
+  // MÉTODO PARA CERRAR SESIÓN 
+  // ===============================================
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    await prefs.remove('token'); 
+    _pusherClient.disconnect();
+    
+    if (mounted) { 
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()), 
+        (Route<dynamic> route) => false, 
+      );
+    }
+  }
+
+  // ===============================================
+  // MÉTODO PARA FINALIZAR UNA RONDA
+  // La actualización de la lista se hará vía Pusher
+  // ===============================================
+  Future<void> _finalizarRonda(int rondaEjecutadaId) async {
+    // 1. Muestra diálogo de carga
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text("Finalizando ronda..."),
+              ],
+            ),
+          );
+        },
+      );
+    }
+    
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('token');
+
+    if (token == null) {
+      if (mounted) Navigator.pop(context);
+      _logout(); 
+      return;
+    }
+
+    try {
+      // Usamos DELETE como lo definiste para finalizar/eliminar
+      final response = await http.delete(
+        Uri.parse("${AppConfig.baseUrl}/rondas/$rondaEjecutadaId"),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+      );
+      
+      // 2. Cierra diálogo de carga
+      if (mounted) Navigator.pop(context);
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Ronda finalizada con éxito.'), backgroundColor: Colors.green),
+          );
+        }
+        // La actualización de la lista ahora es responsabilidad total del evento Pusher enviado por el backend.
+      } else {
+        final errorBody = json.decode(response.body);
+        final errorMsg = errorBody['message'] ?? 'Error desconocido al finalizar la ronda.';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $errorMsg'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de conexión: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+
   void _openNewReportScreen(int rondaId) {
     setState(() {
       _selectedRondaId = rondaId;
@@ -194,7 +292,6 @@ class _ReportesPageState extends State<ReportesPage> {
     setState(() {
       _showNewReportScreen = false;
       _selectedRondaId = null;
-      // No es necesario llamar a _fetchRondas() aquí si la lógica de Pusher funciona
     });
   }
 
@@ -203,20 +300,20 @@ class _ReportesPageState extends State<ReportesPage> {
     final String formattedDate =
     DateFormat('EEEE, d \'de\' MMMM \'de\' y', 'es_ES').format(DateTime.now());
 
-    Widget mainContent;
+    Widget rondasContent;
 
     if (_isLoading) {
-      mainContent = const Center(child: CircularProgressIndicator());
+      rondasContent = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
-      mainContent = Center(
+      rondasContent = Center(
         child: Text(_error ?? 'Ocurrió un error desconocido'),
       );
     } else if (_rondas.isEmpty) {
-      mainContent = const Center(
+      rondasContent = const Center(
         child: Text('No hay rondas disponibles.'),
       );
     } else {
-      mainContent = SingleChildScrollView(
+      rondasContent = SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,7 +333,12 @@ class _ReportesPageState extends State<ReportesPage> {
                   .map(
                     (r) => RondaCard(
                   ronda: r,
-                  onTap: () => _openNewReportScreen(r.rondaEjecutadaId),
+                  // El `onTap` de la tarjeta llama a su lógica interna (navegación o modal)
+                  onTap: () {}, 
+                  // El botón de finalizar es visible si statusRondaId es 2 (Ejecutándose)
+                  onFinish: r.statusRondaId == 2
+                      ? () => _finalizarRonda(r.rondaEjecutadaId)
+                      : null, 
                 ),
               )
                   .toList(),
@@ -247,19 +349,33 @@ class _ReportesPageState extends State<ReportesPage> {
       );
     }
 
-    return Scaffold(
-      body: IndexedStack(
+    final Widget rondasView = Scaffold(
+      appBar: AppBar(
+        title: const Text('Rondas Disponibles'),
+        automaticallyImplyLeading: false, 
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar Sesión',
+            onPressed: _logout, 
+          ),
+        ],
+      ),
+      body: rondasContent,
+    );
+
+
+    return IndexedStack(
         index: _showNewReportScreen ? 1 : 0,
         children: [
-          mainContent,
+          rondasView, 
           if (_selectedRondaId != null)
-            NewReportScreen(
+            NewReportScreen( 
               rondaId: _selectedRondaId!,
               onBack: _backToRondas,
             ),
         ],
-      ),
-    );
+      );
   }
 }
 

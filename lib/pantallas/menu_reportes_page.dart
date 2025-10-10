@@ -10,7 +10,9 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MenuReportesPage extends StatefulWidget {
-  const MenuReportesPage({super.key});
+  final int rondaId;
+
+  const MenuReportesPage({super.key, required this.rondaId});
 
   @override
   State<MenuReportesPage> createState() => _MenuReportesPageState();
@@ -64,19 +66,16 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
       });
     }
   }
-    // ===============================================
-  // FUNCIÓN PARA CERRAR SESIÓN
-  // ===============================================
+ 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     
     // 1. Eliminar el token de autenticación
-    await prefs.remove('token'); // O usa prefs.clear() para eliminar todos los datos
-    
+    await prefs.remove('token'); 
     // 2. Navegar a la pantalla de Login y eliminar todas las rutas anteriores
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const LoginPage()),
-      (Route<dynamic> route) => false, // La condición 'false' borra toda la pila de navegación
+      (Route<dynamic> route) => false, 
     );
   }
 
@@ -134,7 +133,7 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
             context,
             MaterialPageRoute(
               builder: (context) => NewReportScreen(
-                rondaId: rondaEjecutadaId,
+                rondaId: widget.rondaId,
                 onBack: () {
                   Navigator.pop(context);
                   _cargarReportes(); // recarga la lista al regresar
