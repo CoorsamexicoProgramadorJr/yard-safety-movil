@@ -10,6 +10,7 @@ class RondaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     // Lógica para determinar el ícono de la tarjeta
     final Widget leadingIcon = (ronda.statusRondaId == 2)
         ? const Icon(Icons.play_circle_outline, color: Colors.blue)
@@ -21,7 +22,7 @@ class RondaCard extends StatelessWidget {
       try {
         final DateTime inicio = DateTime.parse(ronda.horaInicio!.split(' ')[0]);
         final String hora = ronda.horaInicio!.split(' ')[1].substring(0, 5);
-        
+
         // Mapeo de meses de inglés a español
         final Map<int, String> meses = {
           1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril', 5: 'Mayo', 6: 'Junio',
@@ -44,7 +45,7 @@ class RondaCard extends StatelessWidget {
             // Si la ronda ya está en proceso, navega directamente a la pantalla de reportes.
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const MenuReportesPage()),
+              MaterialPageRoute(builder: (context) => MenuReportesPage(rondaId: ronda.rondaEjecutadaId)),
             );
           } else {
             // Si no está en proceso, muestra el modal para iniciarla.

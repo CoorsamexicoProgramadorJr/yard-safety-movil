@@ -9,7 +9,9 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MenuReportesPage extends StatefulWidget {
-  const MenuReportesPage({super.key});
+  final int rondaId;
+
+  const MenuReportesPage({super.key, required this.rondaId});
 
   @override
   State<MenuReportesPage> createState() => _MenuReportesPageState();
@@ -101,14 +103,11 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
                 ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Aquí debes decidir qué rondaId usar. Por ejemplo 1 como placeholder.
-          final int rondaIdSeleccionada = 1;
-
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => NewReportScreen(
-                rondaId: rondaIdSeleccionada,
+                rondaId: widget.rondaId,
                 onBack: () {
                   Navigator.pop(context);
                   _cargarReportes(); // recarga la lista al regresar
