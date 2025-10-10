@@ -207,10 +207,10 @@ class _ReportesPageState extends State<ReportesPage> {
   }
 
   // ===============================================
-  // MÉTODO PARA FINALIZAR UNA RONDA
+  // MÉTODO PARA FINALIZAR UNA RONDA (usa el ID de catálogo de ronda)
   // La actualización de la lista se hará vía Pusher
   // ===============================================
-  Future<void> _finalizarRonda(int rondaEjecutadaId) async {
+  Future<void> _finalizarRonda(int rondaCatalogoId) async {
     // 1. Muestra diálogo de carga
     if (mounted) {
       showDialog(
@@ -234,7 +234,9 @@ class _ReportesPageState extends State<ReportesPage> {
     final String? token = prefs.getString('token');
 
     if (token == null) {
-      if (mounted) Navigator.pop(context);
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(); // cierra diálogo si está abierto
+      }
       _logout(); 
       return;
     }
@@ -242,7 +244,7 @@ class _ReportesPageState extends State<ReportesPage> {
     try {
       // Usamos DELETE como lo definiste para finalizar/eliminar
       final response = await http.delete(
-        Uri.parse("${AppConfig.baseUrl}/rondas/$rondaEjecutadaId"),
+        Uri.parse("${AppConfig.baseUrl}/rondas/$rondaCatalogoId"),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -251,18 +253,32 @@ class _ReportesPageState extends State<ReportesPage> {
       );
       
       // 2. Cierra diálogo de carga
-      if (mounted) Navigator.pop(context);
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // Log opcional de éxito
+        // print('Ronda $rondaCatalogoId finalizada correctamente');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Ronda finalizada con éxito.'), backgroundColor: Colors.green),
           );
         }
-        // La actualización de la lista ahora es responsabilidad total del evento Pusher enviado por el backend.
+        // Además de Pusher, forzamos un refresh inmediato para evitar pantalla vacía por latencia
+        await _fetchRondas();
       } else {
-        final errorBody = json.decode(response.body);
-        final errorMsg = errorBody['message'] ?? 'Error desconocido al finalizar la ronda.';
+        String errorMsg = 'Error desconocido al finalizar la ronda.';
+        final body = response.body;
+        if (body.isNotEmpty) {
+          try {
+            final errorBody = json.decode(body);
+            errorMsg = errorBody['message']?.toString() ?? errorMsg;
+          } catch (_) {
+            // cuerpo no JSON, usa texto crudo
+            errorMsg = body;
+          }
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: $errorMsg'), backgroundColor: Colors.red),
@@ -270,7 +286,9 @@ class _ReportesPageState extends State<ReportesPage> {
         }
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(); // asegura cerrar diálogo si hubo excepción
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -332,21 +350,21 @@ class _ReportesPageState extends State<ReportesPage> {
               children: _rondas
                   .map(
                     (r) => RondaCard(
-                  ronda: r,
-                  // El `onTap` de la tarjeta llama a su lógica interna (navegación o modal)
-                  onTap: () {}, 
-                  // El botón de finalizar es visible si statusRondaId es 2 (Ejecutándose)
-                  onFinish: r.statusRondaId == 2
-                      ? () => _finalizarRonda(r.rondaEjecutadaId)
-                      : null, 
-                ),
-              )
+                      ronda: r,
+                      // El `onTap` de la tarjeta llama a su lógica interna (navegación o modal)
+                      onTap: () {}, 
+                      onRefresh: _fetchRondas,
+                      // El botón de finalizar es visible si statusRondaId es 2 (Ejecutándose)
+                      onFinish: r.statusRondaId == 2
+                          ? () => _finalizarRonda(r.id) // usar ID de catálogo
+                          : null, 
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 100),
           ],
-        ),
-      );
+      ));
     }
 
     final Widget rondasView = Scaffold(

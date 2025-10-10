@@ -10,12 +10,15 @@ class RondaCard extends StatelessWidget {
   final VoidCallback onTap; 
   // NUEVO: Callback opcional para la acción de finalizar
   final VoidCallback? onFinish; 
+  // NUEVO: Callback opcional para refrescar rondas al volver (puede ser async)
+  final Future<void> Function()? onRefresh;
 
   const RondaCard({
     super.key, 
     required this.ronda, 
     required this.onTap, 
     this.onFinish, // Nuevo parámetro
+    this.onRefresh,
   });
 
   @override
@@ -53,19 +56,28 @@ class RondaCard extends StatelessWidget {
       child: Column(
         children: [
           ListTile(
-            onTap: () {
+            onTap: () async {
               // Lógica interna para la navegación
               if (ronda.statusRondaId == 2 ) {
                 // Si la ronda ya está en proceso, navega directamente a la pantalla de reportes.
-                Navigator.push(
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => MenuReportesPage(rondaId: ronda.rondaEjecutadaId)),
                 );
+                if (onRefresh != null) await onRefresh!();
               } else {
-                // Si no está en proceso, muestra el modal para iniciarla.
-                showRondaModal(context, ronda);
+                // Si no está en proceso, muestra el modal para iniciarla y espera resultado.
+                final started = await showRondaModal(context, ronda);
+                if (started == true) {
+                  // Luego de iniciar, navegamos a la pantalla de reportes.
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => MenuReportesPage(rondaId: ronda.rondaEjecutadaId)),
+                  );
+                  if (onRefresh != null) await onRefresh!();
+                }
               }
-              // También ejecutamos el onTap recibido, si es necesario, aunque en este caso ya lo manejamos arriba.
+              // También ejecutamos el onTap recibido, si es necesario.
               // onTap();
             },
             leading: Container(

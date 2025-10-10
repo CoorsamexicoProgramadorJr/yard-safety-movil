@@ -5,9 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yardsafety/config/app_config.dart';
 import 'package:yardsafety/models/rondas.dart';
 import 'package:intl/intl.dart';
-import 'package:yardsafety/pantallas/new_report_screen.dart';
 
-void showRondaModal(BuildContext context, Ronda ronda) {
+Future<bool?> showRondaModal(BuildContext context, Ronda ronda) async {
   final DateTime now = DateTime.now();
   final DateFormat formatter = DateFormat('dd-MM-yyyy HH:mm', 'es');
   final String formattedTime = formatter.format(now);
@@ -39,17 +38,8 @@ void showRondaModal(BuildContext context, Ronda ronda) {
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         print('Ronda actualizada a estado "En Proceso"');
-        Navigator.of(context).pop(); // Cierra el modal
-
-        // Navegar al NewReportScreen pasando el rondaId correcto
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => NewReportScreen(
-              rondaId: ronda.rondaEjecutadaId, // Usar el ID de la ronda ejecutada
-            ),
-          ),
-        );
+        // Cierra el modal y regresa true para que el caller navegue y refresque
+        Navigator.of(context).pop(true);
       } else {
         print('Error al actualizar la ronda');
         print('Status code: ${response.statusCode}');
@@ -65,7 +55,7 @@ void showRondaModal(BuildContext context, Ronda ronda) {
     }
   }
 
-  showDialog(
+  return showDialog<bool>(
     context: context,
     builder: (BuildContext context) {
       return Dialog(
