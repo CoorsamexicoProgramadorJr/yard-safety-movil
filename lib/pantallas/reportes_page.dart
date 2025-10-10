@@ -1,13 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yardsafety/config/app_config.dart';
-import 'package:yardsafety/models/rondas.dart';
+import 'package:yardsafety/models/rondas.dart'; // Asegúrate de que la ruta sea correcta
 import 'package:yardsafety/pantallas/login.dart';
 import '../widgets/ronda_card.dart';
 import 'new_report_screen.dart';
-import 'package:intl/intl.dart'; // <-- 1. Importar para el formato de fecha
+import 'package:intl/intl.dart';
+import 'package:dart_pusher_channels/dart_pusher_channels.dart';
 
 class ReportesPage extends StatefulWidget {
   const ReportesPage({super.key});
@@ -22,38 +24,107 @@ class _ReportesPageState extends State<ReportesPage> {
   bool _isLoading = true;
   String? _error;
   int? _selectedRondaId;
-  String _userName = "Usuario"; 
+  String _userName = "Usuario";
+
+  late final PusherChannelsClient _pusherClient;
+  StreamSubscription<ChannelReadEvent>? _rondasSubscription;
 
   @override
-
   void initState() {
     super.initState();
     _loadUserData();
     _fetchRondas();
+    _initPusher();
   }
 
-  // <-- 3. Nuevo método para cargar el nombre del usuario
+  @override
+  void dispose() {
+    _rondasSubscription?.cancel();
+    _pusherClient.disconnect();
+    super.dispose();
+  }
+
+  Future<void> _initPusher() async {
+    PusherChannelsPackageLogger.enableLogs();
+
+    const pusherOptions = PusherChannelsOptions.fromCluster(
+      scheme: 'wss',
+      cluster: 'mt1',
+      key: '1494bbfacf7672ef5e1a',
+      port: 443,
+    );
+
+    _pusherClient = PusherChannelsClient.websocket(
+      options: pusherOptions,
+      connectionErrorHandler: (exception, trace, refresh) {
+        print("Error de conexión con Pusher: $exception");
+        refresh();
+      },
+    );
+
+    _pusherClient.onConnectionEstablished.listen((_) {
+
+      // 2. SOLO CUANDO la conexión esté lista, nos suscribimos al canal
+      final channel = _pusherClient.publicChannel('rondas');
+      _rondasSubscription = channel.bind('rondas.updated').listen((event) {
+
+        try {
+          if (!mounted) return;
+
+          if (event.data == null || (event.data as String).isEmpty) {
+            return;
+          }
+          final eventData = json.decode(event.data as String) as Map<String, dynamic>;
+
+          final rondaActualizada = Ronda.fromPusherEvent(eventData);
+
+          final esActiva = (eventData['catalogo_ronda_status'] as int? ?? 0) == 1;
+
+          setState(() {
+            final index = _rondas.indexWhere((ronda) => ronda.id == rondaActualizada.id);
+
+            if (index != -1) {
+              if (esActiva) {
+                _rondas[index] = rondaActualizada;
+              } else {
+                _rondas.removeAt(index);
+              }
+            } else if (esActiva) {
+              _rondas.insert(0, rondaActualizada);
+            }
+          });
+
+        } catch (e, stacktrace) {
+          print('Error: $e');
+          print('Stacktrace: $stacktrace');
+        }
+      });
+
+      // 3. Confirmamos la suscripción al canal (muy importante)
+      channel.subscribe();
+    });
+
+    // 4. Finalmente, iniciamos la conexión
+    _pusherClient.connect();
+  }
+
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
-
     final String? nombre = prefs.getString('nombreCompleto');
-
     if (mounted) {
       setState(() {
-      
         _userName = nombre ?? 'Usuario';
       });
     }
   }
 
   Future<void> _fetchRondas() async {
-    // ... (Tu código actual de _fetchRondas) ...
     if (!mounted) return;
+    if (_rondas.isEmpty) {
+      setState(() => _isLoading = true);
+    }
+    _error = null;
 
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
 
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
@@ -61,6 +132,7 @@ class _ReportesPageState extends State<ReportesPage> {
     if (token == null) {
       setState(() {
         _error = 'Token de autenticación no encontrado. Redirigiendo...';
+        _isLoading = false;
       });
       await Future.delayed(const Duration(seconds: 2));
       if (mounted) {
@@ -95,8 +167,7 @@ class _ReportesPageState extends State<ReportesPage> {
       } else {
         if (mounted) {
           setState(() {
-            _error =
-                'Error al cargar las rondas. Código de estado: ${response.statusCode}';
+            _error = 'Error al cargar las rondas. Código de estado: ${response.statusCode}';
             _isLoading = false;
           });
         }
@@ -122,15 +193,15 @@ class _ReportesPageState extends State<ReportesPage> {
     setState(() {
       _showNewReportScreen = false;
       _selectedRondaId = null;
-      _fetchRondas();
+      // No es necesario llamar a _fetchRondas() aquí si la lógica de Pusher funciona
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final String formattedDate =
+    DateFormat('EEEE, d \'de\' MMMM \'de\' y', 'es_ES').format(DateTime.now());
 
-    final String formattedDate = DateFormat('EEEE, d \'de\' MMMM \'de\' y', 'es_ES').format(DateTime.now());
-    
     Widget mainContent;
 
     if (_isLoading) {
@@ -149,12 +220,11 @@ class _ReportesPageState extends State<ReportesPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 5. Usar el nombre del usuario cargado
             Text('Bienvenido, $_userName',
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                style:
+                const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            // 6. Usar la fecha formateada
-            Text('Hoy es ${formattedDate.capitalize()}', // capitalize() para que inicie con mayúscula
+            Text('Hoy es ${formattedDate.capitalize()}',
                 style: const TextStyle(fontSize: 16, color: Colors.grey)),
             const SizedBox(height: 32),
             const Text('RONDAS',
@@ -164,10 +234,10 @@ class _ReportesPageState extends State<ReportesPage> {
               children: _rondas
                   .map(
                     (r) => RondaCard(
-                      ronda: r,
-                      onTap: () => _openNewReportScreen(r.id),
-                    ),
-                  )
+                  ronda: r,
+                  onTap: () => _openNewReportScreen(r.id),
+                ),
+              )
                   .toList(),
             ),
             const SizedBox(height: 100),
@@ -191,6 +261,7 @@ class _ReportesPageState extends State<ReportesPage> {
     );
   }
 }
+
 extension StringExtension on String {
   String capitalize() {
     if (isEmpty) return this;
