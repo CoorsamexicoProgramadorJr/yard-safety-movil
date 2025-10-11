@@ -28,7 +28,12 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
     _cargarReportes();
   }
 
-  Future<void> _cargarReportes() async {
+  Future<void> _cargarReportes({bool showLoading = true}) async {
+    // Si la lista ya tiene datos, solo actualiza en segundo plano sin mostrar el spinner.
+    if (showLoading || reportes == null || reportes!.isEmpty) {
+        setState(() => cargando = true);
+    }
+    
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? '';
@@ -53,6 +58,7 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
           cargando = false;
         });
       } else {
+        // En caso de error, limpia la lista y detén la carga
         setState(() {
           reportes = [];
           cargando = false;
@@ -73,10 +79,19 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
     // 1. Eliminar el token de autenticación
     await prefs.remove('token'); 
     // 2. Navegar a la pantalla de Login y eliminar todas las rutas anteriores
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginPage()),
-      (Route<dynamic> route) => false, 
-    );
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (Route<dynamic> route) => false, 
+      );
+    }
+  }
+
+  // ==========================================================
+  // Implementación del Pull-to-Refresh (como en la otra pantalla)
+  // ==========================================================
+  Future<void> _handleRefresh() async {
+    await _cargarReportes(showLoading: false);
   }
 
   @override
@@ -90,14 +105,11 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        // ===============================================
-        // AGREGANDO EL BOTÓN DE CERRAR SESIÓN
-        // ===============================================
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar Sesión',
-            onPressed: _logout, // Llamamos a la nueva función de logout
+            onPressed: _logout,
           ),
         ],
       ),
@@ -105,42 +117,55 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
           ? const Center(child: CircularProgressIndicator())
           : reportes == null || reportes!.isEmpty
               ? const Center(child: Text('No hay reportes disponibles.'))
-              : ListView.builder(
-                  padding: const EdgeInsets.only(top: 20),
-                  itemCount: reportes!.length,
-                  itemBuilder: (context, index) {
-                    final reporte = reportes![index];
-                    return InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                ReporteDetailsPage(reporte: reporte),
-                          ),
+              : RefreshIndicator( // 💡 Agregamos RefreshIndicator
+                  onRefresh: _handleRefresh,
+                  child: ListView.builder(
+                      padding: const EdgeInsets.only(top: 20),
+                      itemCount: reportes!.length,
+                      itemBuilder: (context, index) {
+                        final reporte = reportes![index];
+                        return InkWell(
+                          onTap: () async { // 💡 Usamos async/await aquí
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ReporteDetailsPage(reporte: reporte),
+                              ),
+                            );
+                            // Si la página de detalles regresa con `true`, significa que hubo un cambio
+                            if (result == true) { 
+                              _cargarReportes(); // Recargamos la lista
+                            }
+                          },
+                          child: ReporteCard(reporte: reporte),
                         );
                       },
-                      child: ReporteCard(reporte: reporte),
-                    );
-                  },
+                    ),
                 ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
+        onPressed: () async { // 💡 Usamos async/await aquí
           // Aquí debes decidir qué rondaId usar. Por ejemplo 1 como placeholder.
           final int rondaEjecutadaId = 0;
 
-          Navigator.push(
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => NewReportScreen(
                 rondaId: widget.rondaId,
-                onBack: () {
-                  Navigator.pop(context);
-                  _cargarReportes(); // recarga la lista al regresar
-                },
+                // El callback onBack ya no es necesario si usamos await/result
+                // onBack: () {
+                //   Navigator.pop(context);
+                //   _cargarReportes(); 
+                // },
               ),
             ),
           );
+          
+          // Si la pantalla de nuevo reporte regresa con `true`, recarga la lista
+          if (result == true) {
+            _cargarReportes();
+          }
         },
         label: const Text('Nuevo Reporte'),
         icon: const Icon(Icons.add),

@@ -4,17 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as path;
 
-// Asegúrate de que esta ruta a MenuRep sea correcta.
 import '../models/menu_rep.dart';
 import 'package:dotted_border/dotted_border.dart';
 import '../widgets/image_input.dart';
-import '../config/app_config.dart'; // Asegúrate de que esta ruta sea correcta
+import '../config/app_config.dart';
 
-// ===============================================
-// WIDGETS DE SÓLO LECTURA (READ-ONLY)
-// ===============================================
-
-// Widget reutilizable para mostrar valores en estilo de campo de texto normal (NO editable)
 class ReportFormField extends StatelessWidget {
   final String labelText;
   final String valueText;
@@ -31,14 +25,12 @@ class ReportFormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Estilo por defecto para la etiqueta
     final defaultLabelStyle = labelStyle ??
         const TextStyle(
           fontSize: 14.0,
           color: Color.fromARGB(255, 170, 171, 171),
         );
 
-    // Estilo por defecto para el valor
     final defaultValueStyle = valueStyle ??
         const TextStyle(
           fontSize: 14.0,
@@ -60,14 +52,13 @@ class ReportFormField extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10.0),
-            color: const Color.fromRGBO(233, 242, 248, 1), // Color de fondo
+            color: const Color.fromRGBO(233, 242, 248, 1),
             border: Border.all(
-              color: const Color.fromARGB(255, 120, 165, 202), // Borde
+              color: const Color.fromARGB(255, 120, 165, 202),
               width: .5,
             ),
           ),
           child: Text(
-            // Muestra 'N/A' si el valor está vacío
             valueText.isEmpty ? 'N/A' : valueText,
             style: defaultValueStyle,
           ),
@@ -77,7 +68,6 @@ class ReportFormField extends StatelessWidget {
   }
 }
 
-// Widget para mostrar valores con borde punteado (NO editable)
 class CustomTextField extends StatelessWidget {
   final String label;
   final String value;
@@ -99,12 +89,10 @@ class CustomTextField extends StatelessWidget {
               style: const TextStyle(fontSize: 10, color: Colors.black54)),
           const SizedBox(height: 8),
           DottedBorder(
-            // **¡CORRECCIÓN! Se elimina el parámetro 'dashPattern' que causa el error.**
-            // Ahora solo se pasa el widget hijo.
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              color: Colors.white, // Fondo del área de valor
+              color: Colors.white,
               child: Text(
                 value.isEmpty ? 'N/A' : value,
                 style: const TextStyle(
@@ -150,7 +138,7 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
 
       late Uri uri;
 
-      // Endpoint según acción
+      // Endpoint según la acción
       if (action == "reenviar") {
         uri = Uri.parse("${AppConfig.baseUrl}/reportes/${widget.reporte.id}");
       } else if (action == "noEncontrado") {
@@ -163,23 +151,30 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
         throw Exception("Acción no soportada");
       }
 
+      // 👇 Debug: Mostrar URL del endpoint
+      print("📡 Enviando reporte a: $uri");
+
       final request = http.MultipartRequest("POST", uri);
 
-      // Headers
       request.headers.addAll({
         "Authorization": "Bearer $token",
         "Accept": "application/json",
       });
 
       request.fields['_method'] = 'PUT';
-      request.fields['ronda_ejecutada_id'] = '1';
-      request.fields['zona_id'] = '1';
-      request.fields['ubicacion_id'] = '';
+      
+      // 🚨 ZONA Y UBICACIÓN CORREGIDAS: Se usan las IDs del reporte original.
+      // Estas propiedades deben existir en tu modelo MenuRep y contener String o int.
+      // Usamos .toString() para asegurar que sean Strings para el MultipartRequest.
+      request.fields['ronda_ejecutada_id'] = widget.reporte.rondaEjecutadaId.toString(); 
+      request.fields['zona_id'] = widget.reporte.zonaId.toString(); 
+      request.fields['ubicacion_id'] = widget.reporte.ubicacionId.toString(); 
 
+      // La descripción es el valor actual del controlador (el que el usuario puede editar)
       if (action == "reenviar") {
         request.fields['descripcion'] = _descripcionController.text.isNotEmpty
             ? _descripcionController.text
-            : 'Este es un reporte reenviado automáticamente desde la aplicación móvil';
+            : 'Este es un reporte reenviado automáticamente desde la app móvil';
       }
 
       if (action == "noEncontrado") {
@@ -191,10 +186,12 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
       if (action == "solucionado") {
         request.fields['descripcion'] = _descripcionController.text.isNotEmpty
             ? _descripcionController.text
-            : 'Estatus actualizado: NO ENCONTRADO';
+            : 'Estatus actualizado: SOLUCIONADO';
       }
 
-      // Imágenes (común a todas las acciones)
+      // 👇 Debug: Mostrar campos enviados
+      print("🧾 Campos enviados: ${request.fields}");
+
       for (var image in _selectedImages) {
         request.files.add(await http.MultipartFile.fromPath(
           'imagenes[]',
@@ -203,20 +200,30 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
         ));
       }
 
-      print("Enviando campos: ${request.fields}");
+      // 👇 Debug: Mostrar cantidad de imágenes
+      print("📸 Imágenes adjuntas: ${_selectedImages.length}");
+
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      print("Body: ${response.body}");
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        _showSnackBar('Acción "$action" realizada con éxito');
+      // 👇 Debug: Mostrar respuesta del servidor
+      print("📥 Respuesta del servidor [${response.statusCode}]: ${response.body}");
+
+      // Se incluye el código de estado 204 como éxito
+      if (response.statusCode == 200 || 
+          response.statusCode == 201 || 
+          response.statusCode == 204) {
+        
+        _showSnackBar('✅ Acción "$action" realizada con éxito');
         if (mounted) {
-          Navigator.pop(context, true);
+          // Devolver 'true' para que la pantalla anterior recargue la lista
+          Navigator.pop(context, true); 
         }
       } else {
         throw Exception('Error al enviar reporte: ${response.body}');
       }
     } catch (e) {
+      print("❌ Error al enviar reporte: $e");
       _showSnackBar('Error: $e');
     } finally {
       if (mounted) {
@@ -237,6 +244,7 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
   @override
   void initState() {
     super.initState();
+    // Carga la descripción actual del reporte en el controlador
     _descripcionController.text = widget.reporte.descripcion;
   }
 
@@ -263,7 +271,7 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Campos con datos del Reporte ---
+            // Los siguientes campos son de solo lectura
             ReportFormField(
               labelText: 'ID del Reporte:',
               valueText: widget.reporte.id,
@@ -271,60 +279,82 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Zona:',
-              valueText: widget.reporte.ubicacion, // <- Dato del reporte
+              valueText: widget.reporte.ubicacion,
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Empresa:',
-              valueText: widget.reporte.empresa, // <- Dato del reporte
+              valueText: widget.reporte.empresa,
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Tipo de Reporte:',
-              valueText: widget.reporte.tipo, // <- Dato del reporte
+              valueText: widget.reporte.tipo,
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Gravedad (Status):',
-              valueText: widget.reporte.gravedad, // <- Dato del reporte
+              valueText: widget.reporte.gravedad,
             ),
             const SizedBox(height: 20.0),
             ReportFormField(
               labelText: 'Catálogo (Evento Principal):',
-              valueText: widget.reporte.catalogo, // <- Dato del reporte
+              valueText: widget.reporte.catalogo,
             ),
             const SizedBox(height: 20.0),
             CustomTextField(
               label: 'Número Económico:',
-              value: widget.reporte.unidad, // <- Dato del reporte
+              value: widget.reporte.unidad,
             ),
             const CustomTextField(
               label: 'Placas de Unidad:',
               value: 'No especificado en reporte',
             ),
             const SizedBox(height: 20.0),
+            
+            // 🚨 CAMPO EDITABLE: Descripción del Reporte
             const Text(
-              'Descripción del Reporte:',
+              'Descripción del Reporte (editable):',
               style: TextStyle(
                 fontSize: 16.0,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8.0),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: Text(
-                widget.reporte.descripcion.isEmpty
-                    ? 'Sin descripción detallada.'
-                    : widget.reporte.descripcion, // <- Dato del reporte
-                style: const TextStyle(
-                  fontSize: 14.0,
-                  color: Color.fromARGB(255, 83, 95, 116),
+            TextFormField(
+              controller: _descripcionController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Ingrese una descripción o modifique la existente...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                  borderSide: const BorderSide(
+                    color: Color.fromARGB(255, 120, 165, 202),
+                    width: .5,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                  borderSide: const BorderSide(
+                    color: Color.fromARGB(255, 120, 165, 202),
+                    width: .5,
+                  ),
+                ),
+                fillColor: const Color.fromRGBO(233, 242, 248, 1),
+                filled: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 12.0,
                 ),
               ),
+              style: const TextStyle(
+                fontSize: 14.0,
+                color: Color.fromARGB(255, 83, 95, 116),
+              ),
             ),
+            // Fin del campo editable
+            
             const SizedBox(height: 30.0),
-            // --- Botones de Acción ---
             const Text(
               'Acciones:',
               style: TextStyle(
@@ -337,7 +367,6 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 12),
-                // Componente para subir imágenes
                 ImageInput(
                   images: _selectedImages,
                   onImagesChanged: (images) {
@@ -370,7 +399,8 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: _isLoading ? null : () => _submitReport("noEncontrado"),
+                  onPressed:
+                      _isLoading ? null : () => _submitReport("noEncontrado"),
                   child: _isLoading
                       ? const CircularProgressIndicator()
                       : const Text("No Encontrado"),
@@ -378,13 +408,15 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
                 const SizedBox(height: 20),
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.deepOrangeAccent, width: 1.5),
+                    side:
+                        const BorderSide(color: Colors.deepOrangeAccent, width: 1.5),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: _isLoading ? null : () => _submitReport("solucionado"),
+                  onPressed:
+                      _isLoading ? null : () => _submitReport("solucionado"),
                   child: _isLoading
                       ? const CircularProgressIndicator()
                       : const Text("Solucionado"),
@@ -393,10 +425,8 @@ class _ReporteDetailsPageState extends State<ReporteDetailsPage> {
               ],
             ),
           ],
-        )
-        ,
-      )
-      ,
+        ),
+      ),
     );
   }
 }

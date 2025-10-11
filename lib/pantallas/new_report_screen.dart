@@ -2,12 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yardsafety/pantallas/menu_reportes_page.dart';
 import 'dart:io';
-// Asegúrate de que estas rutas sean correctas
-import 'package:yardsafety/widgets/custom_text_field.dart'; 
+import 'package:yardsafety/widgets/custom_text_field.dart';
 import 'package:yardsafety/widgets/custom_dropdown.dart';
 import 'package:yardsafety/widgets/image_input.dart';
-
 import '../config/app_config.dart';
 
 class NewReportScreen extends StatefulWidget {
@@ -23,32 +22,22 @@ class NewReportScreen extends StatefulWidget {
 class _NewReportScreenState extends State<NewReportScreen> {
   bool _isLoading = true;
 
-  // Lista de IDs para las Condiciones Inseguras (Checkbox)
-  List<int> _selectedCondicionesInseguras = []; 
-  
-  // Mapeo de datos de la API
+  List<int> _selectedCondicionesInseguras = [];
   Map<String, List<dynamic>> _apiData = {};
-  
-  // Valores seleccionados. 'peligro' guarda el nombre (String) para el CustomDropdown, el resto el ID (int).
   Map<String, dynamic> _selectedValues = {
-    'peligro': null, 
+    'peligro': null,
     'categoriaReporte': null,
     'zona': null,
     'tipoUnidad': null,
     'empresa': null,
   };
 
-  // Lista de condiciones inseguras cargadas para el peligro seleccionado
   List<dynamic> _condicionesInseguras = [];
-
   final Map<String, TextEditingController> _controllers = {
-   
     'numeroEconomico': TextEditingController(),
     'placa': TextEditingController(),
     'descripcion': TextEditingController(),
   };
-  
-  // Lista para almacenar las imágenes seleccionadas
   final List<File> _selectedImages = [];
 
   @override
@@ -57,7 +46,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
     _loadFormData();
   }
 
-  // Busca el ID del item seleccionado a partir de su nombre (usado para CustomDropdown)
   int? _getIdByName(String key, String? name) {
     if (name == null) return null;
     return _apiData[key]?.firstWhere(
@@ -66,7 +54,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
     )?['id'] as int?;
   }
 
-  // Carga todos los datos necesarios desde las APIs.
   Future<void> _loadFormData() async {
     await Future.wait([
       _fetchApiData('catalogoPeligros', 'select/catalogo-peligros'),
@@ -78,7 +65,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
     setState(() => _isLoading = false);
   }
 
-  // Función genérica para obtener datos de una API protegida.
   Future<void> _fetchApiData(String key, String endpoint) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -86,8 +72,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
       Uri.parse('${AppConfig.baseUrl}/$endpoint'),
       headers: {
         "Content-Type": "application/json",
-         "Authorization": "Bearer $token",
-         },
+        "Authorization": "Bearer $token",
+      },
     );
 
     if (response.statusCode == 200) {
@@ -96,11 +82,9 @@ class _NewReportScreenState extends State<NewReportScreen> {
       print('Error al cargar $key: ${response.body}');
     }
   }
-  
-  // Obtener Condiciones Inseguras por ID de Peligro
+
   Future<void> _fetchCondicionesInseguras(int peligroId) async {
     setState(() {
-      // Limpiamos las condiciones anteriores y los valores seleccionados
       _condicionesInseguras = [];
       _selectedCondicionesInseguras = [];
     });
@@ -108,13 +92,13 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
     final endpoint = 'select/condicion-insegura/$peligroId';
-    
+
     final response = await http.get(
       Uri.parse('${AppConfig.baseUrl}/$endpoint'),
       headers: {
-        "Content-Type": "application/json", 
+        "Content-Type": "application/json",
         "Authorization": "Bearer $token",
-        },
+      },
     );
 
     if (response.statusCode == 200) {
@@ -127,7 +111,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
     }
   }
 
-  // Envía el reporte a la API.
   Future<void> _crearReporte() async {
     final peligroId = _getIdByName('catalogoPeligros', _selectedValues['peligro'] as String?);
 
@@ -149,17 +132,14 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
 
-    // Preparamos la petición como multipart
     final uri = Uri.parse("${AppConfig.baseUrl}/reportes");
     final request = http.MultipartRequest("POST", uri);
 
-    // Headers
     request.headers.addAll({
       "Authorization": "Bearer $token",
       "Accept": "application/json",
     });
 
-    // Campos normales
     request.fields['ronda_ejecutada_id'] = widget.rondaId.toString();
     request.fields['categoria_reporte_id'] = _selectedValues['categoriaReporte']?.toString() ?? '';
     request.fields['zona_id'] = _selectedValues['zona']?.toString() ?? '';
@@ -167,14 +147,11 @@ class _NewReportScreenState extends State<NewReportScreen> {
     request.fields['empresa_id'] = _selectedValues['empresa']?.toString() ?? '';
     request.fields['descripcion'] = _controllers['descripcion']!.text;
 
-    // Array de IDs
     request.fields['catalogo_evento_id[]'] = peligroId.toString();
     for (var id in _selectedCondicionesInseguras) {
       request.fields['condicion_insegura_id[]'] = id.toString();
     }
 
-    // Opcionales
-    
     if (_controllers['numeroEconomico']!.text.isNotEmpty) {
       request.fields['numero_economico'] = _controllers['numeroEconomico']!.text;
     }
@@ -182,7 +159,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
       request.fields['placa'] = _controllers['placa']!.text;
     }
 
-    // Agregar imágenes como archivos
     for (int i = 0; i < _selectedImages.length; i++) {
       final image = _selectedImages[i];
       request.files.add(await http.MultipartFile.fromPath(
@@ -191,22 +167,24 @@ class _NewReportScreenState extends State<NewReportScreen> {
       ));
     }
 
-    // Enviar
     print(request.fields);
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       _showSnackbar('Reporte creado correctamente!');
-      
-      // 1. Llama al callback para que la pantalla anterior pueda actualizar su lista.
+
       if (widget.onBack != null) {
         widget.onBack!();
-      } 
-      
-      // 2. Cierra la pantalla actual y vuelve a la anterior.
-      Navigator.pop(context); 
+      }
 
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MenuReportesPage(rondaId: widget.rondaId),
+        ),
+        (Route<dynamic> route) => false,
+      );
     } else {
       _showSnackbar('Error al crear el reporte: ${response.body}');
       print(response.body);
@@ -233,29 +211,17 @@ class _NewReportScreenState extends State<NewReportScreen> {
               padding: const EdgeInsets.all(16.0),
               child: ListView(
                 children: [
-                  // 1. Dropdown para Peligros
                   _buildDropdownCatalog('Peligro', 'catalogoPeligros'),
-
-                  // 2. Checkbox List para Condiciones Inseguras (si hay un peligro seleccionado)
                   if (_selectedValues['peligro'] != null)
                     _buildCondicionInseguraCheckboxList(),
-
-                  // 3. Demás Dropdowns usando CustomDropdown
                   _buildDropdownCatalog('Categoría de Reporte', 'categoriaReporte'),
                   _buildDropdownCatalog('Zona', 'zona'),
-                  
-                  // Text Fields
-                  
                   _buildTextField('Número Económico ', 'numeroEconomico'),
                   _buildTextField('Placa ', 'placa'),
-                  
-                  // Más Dropdowns
                   _buildDropdownCatalog('Tipo de Unidad ', 'tipoUnidad'),
                   _buildDropdownCatalog('Empresa ', 'empresa'),
-                  
                   _buildTextField('Descripción', 'descripcion', isDashed: true),
                   const SizedBox(height: 16),
-                  // Componente para subir imágenes
                   ImageInput(
                     images: _selectedImages,
                     onImagesChanged: (images) {
@@ -278,22 +244,16 @@ class _NewReportScreenState extends State<NewReportScreen> {
     );
   }
 
-  // Widget para todos los catálogos (Peligro, Zona, Empresa, etc.) usando CustomDropdown
   Widget _buildDropdownCatalog(String label, String key) {
     final List<dynamic>? items = _apiData[key];
     final List<String> itemNames = items?.map((item) => item['nombre'] as String).toList() ?? [];
-    
-    // 1. Intentar obtener el ID (si está guardado como ID)
     final int? currentId = _selectedValues[key] is int ? _selectedValues[key] as int? : null;
-    
-    String? currentValueName;
 
+    String? currentValueName;
     if (currentId != null) {
-      // Si tenemos un ID, buscamos el nombre
       final selectedItem = items?.firstWhere((item) => item['id'] == currentId, orElse: () => null);
       currentValueName = selectedItem?['nombre'] as String?;
     } else if (_selectedValues[key] is String) {
-      // Si no tenemos ID, pero tenemos un nombre (solo pasa con 'peligro'), usamos ese nombre
       currentValueName = _selectedValues[key] as String?;
     }
 
@@ -311,19 +271,16 @@ class _NewReportScreenState extends State<NewReportScreen> {
       items: itemNames,
       onChanged: (String? newValueName) {
         setState(() {
-          // Si es el catálogo de Peligros, guardamos el nombre.
           if (key == 'catalogoPeligros') {
-            _selectedValues['peligro'] = newValueName; 
+            _selectedValues['peligro'] = newValueName;
             final int? peligroId = _getIdByName(key, newValueName);
-            
             if (peligroId != null) {
-              _fetchCondicionesInseguras(peligroId); // Cargar condiciones
+              _fetchCondicionesInseguras(peligroId);
             } else {
               _condicionesInseguras = [];
               _selectedCondicionesInseguras = [];
             }
           } else {
-            // Para el resto de catálogos, guardamos el ID
             _selectedValues[key] = _getIdByName(key, newValueName);
           }
         });
@@ -331,7 +288,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
     );
   }
 
-  // Widget para la lista de Checkboxes de Condiciones Inseguras
   Widget _buildCondicionInseguraCheckboxList() {
     if (_condicionesInseguras.isEmpty) {
       return const Padding(
