@@ -9,7 +9,12 @@ class MenuRep {
   final String catalogo; // eventos[0].nombre
   final List<String> eventos;
   
-  // 💡 CAMPOS CRUCIALES AÑADIDOS
+
+  final String severidad; 
+ 
+  final String severidadId; 
+
+  // 💡 CAMPOS CRUCIALES EXISTENTES
   final String rondaEjecutadaId;
   final String zonaId;
   final String ubicacionId;
@@ -24,7 +29,10 @@ class MenuRep {
     required this.gravedad,
     required this.catalogo,
     required this.eventos,
-    // Inicialización de los nuevos campos
+    // Inicialización de los nuevos campos de Severidad
+    required this.severidad,
+    required this.severidadId,
+    // Inicialización de los campos cruciales
     required this.rondaEjecutadaId,
     required this.zonaId,
     required this.ubicacionId,
@@ -34,14 +42,15 @@ class MenuRep {
     final ubicacionData = json['ubicacion'] as Map<String, dynamic>?;
     
     // 1. Extracción de IDs (necesarias para re-emisión)
-    // Asumimos 'ronda_ejecutada_id' en el nivel raíz o un valor por defecto.
     final rondaEjecutadaId = json['ronda_ejecutada_id']?.toString() ?? '1'; 
-    
-    // Las IDs de Zona y Ubicación están anidadas.
     final zonaId = ubicacionData?['zona_id']?.toString() ?? '1';
     final ubicacionId = ubicacionData?['ubicacion_id']?.toString() ?? '';
     
-    // 2. Extracción del resto de campos
+    // 2. Extracción de los campos de Severidad
+    final severidadId = json['severidad_id']?.toString() ?? 'NA';
+    final severidadNombre = json['severidad_nombre']?.toString() ?? 'NA';
+    
+    // 3. Extracción del resto de campos
     return MenuRep(
       id: json['id']?.toString() ?? '',
       tipo: json['categoria_reporte_nombre'] ?? '',
@@ -66,7 +75,10 @@ class MenuRep {
               .toList() ??
           [],
           
-      // 3. Asignación de los nuevos campos (solución al error de compilación)
+      // 4. Asignación de los nuevos campos de Severidad
+      severidad: severidadNombre,
+      severidadId: severidadId,
+    
       rondaEjecutadaId: rondaEjecutadaId,
       zonaId: zonaId,
       ubicacionId: ubicacionId,

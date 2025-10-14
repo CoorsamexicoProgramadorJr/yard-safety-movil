@@ -30,6 +30,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
     'zona': null,
     'tipoUnidad': null,
     'empresa': null,
+    // 💡 CAMPO DE SEVERIDAD AÑADIDO
+    'severidad': null, 
   };
 
   List<dynamic> _condicionesInseguras = [];
@@ -46,12 +48,17 @@ class _NewReportScreenState extends State<NewReportScreen> {
     _loadFormData();
   }
 
+  // Helper para obtener el ID de un elemento seleccionado por su nombre
   int? _getIdByName(String key, String? name) {
     if (name == null) return null;
-    return _apiData[key]?.firstWhere(
+    final id = _apiData[key]?.firstWhere(
       (item) => item['nombre'] == name,
       orElse: () => null,
     )?['id'] as int?;
+    
+    // 💡 PRINT PARA VERIFICAR ID
+    print('Dropdown: $key, Nombre: $name, ID obtenido: $id'); 
+    return id;
   }
 
   Future<void> _loadFormData() async {
@@ -61,6 +68,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _fetchApiData('zona', 'select/zona'),
       _fetchApiData('tipoUnidad', 'select/tipo-unidad'),
       _fetchApiData('empresa', 'select/empresa'),
+      // 💡 CARGA DE DATOS DE SEVERIDAD
+      _fetchApiData('severidad', 'select/severidad'), 
     ]);
     setState(() => _isLoading = false);
   }
@@ -113,9 +122,16 @@ class _NewReportScreenState extends State<NewReportScreen> {
 
   Future<void> _crearReporte() async {
     final peligroId = _getIdByName('catalogoPeligros', _selectedValues['peligro'] as String?);
+    final severidadId = _selectedValues['severidad'] as int?; // El ID de severidad ya está guardado.
 
     if (peligroId == null) {
       _showSnackbar('Selecciona un peligro');
+      return;
+    }
+    
+    // 💡 VALIDACIÓN DE SEVERIDAD
+    if (severidadId == null) {
+      _showSnackbar('Selecciona la severidad');
       return;
     }
 
@@ -140,18 +156,24 @@ class _NewReportScreenState extends State<NewReportScreen> {
       "Accept": "application/json",
     });
 
+    // CAMPOS DE FORMULARIO
     request.fields['ronda_ejecutada_id'] = widget.rondaId.toString();
     request.fields['categoria_reporte_id'] = _selectedValues['categoriaReporte']?.toString() ?? '';
     request.fields['zona_id'] = _selectedValues['zona']?.toString() ?? '';
     request.fields['tipo_unidad_id'] = _selectedValues['tipoUnidad']?.toString() ?? '';
     request.fields['empresa_id'] = _selectedValues['empresa']?.toString() ?? '';
     request.fields['descripcion'] = _controllers['descripcion']!.text;
+    
+    // 💡 CAMPO DE SEVERIDAD EN EL REQUEST
+    request.fields['severidad_id'] = severidadId.toString(); 
 
+    // EVENTOS Y CONDICIONES
     request.fields['catalogo_evento_id[]'] = peligroId.toString();
     for (var id in _selectedCondicionesInseguras) {
       request.fields['condicion_insegura_id[]'] = id.toString();
     }
 
+    // UNIDAD
     if (_controllers['numeroEconomico']!.text.isNotEmpty) {
       request.fields['numero_economico'] = _controllers['numeroEconomico']!.text;
     }
@@ -159,6 +181,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       request.fields['placa'] = _controllers['placa']!.text;
     }
 
+    // IMÁGENES
     for (int i = 0; i < _selectedImages.length; i++) {
       final image = _selectedImages[i];
       request.files.add(await http.MultipartFile.fromPath(
@@ -167,7 +190,11 @@ class _NewReportScreenState extends State<NewReportScreen> {
       ));
     }
 
-    print(request.fields);
+    // 💡 PRINT PARA VERIFICAR LOS DATOS ANTES DE ENVIAR
+    print('--- DATOS DEL REPORTE A ENVIAR ---');
+    request.fields.forEach((k, v) => print('$k: $v'));
+    print('----------------------------------');
+    
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
@@ -214,6 +241,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
                   _buildDropdownCatalog('Peligro', 'catalogoPeligros'),
                   if (_selectedValues['peligro'] != null)
                     _buildCondicionInseguraCheckboxList(),
+                  // 💡 WIDGET DE SEVERIDAD AGREGADO
+                  _buildDropdownCatalog('Severidad', 'severidad'), 
                   _buildDropdownCatalog('Categoría de Reporte', 'categoriaReporte'),
                   _buildDropdownCatalog('Zona', 'zona'),
                   _buildTextField('Número Económico ', 'numeroEconomico'),
@@ -247,16 +276,19 @@ class _NewReportScreenState extends State<NewReportScreen> {
   Widget _buildDropdownCatalog(String label, String key) {
     final List<dynamic>? items = _apiData[key];
     final List<String> itemNames = items?.map((item) => item['nombre'] as String).toList() ?? [];
-    final int? currentId = _selectedValues[key] is int ? _selectedValues[key] as int? : null;
-
+    
+    // Obtener el nombre del valor seleccionado (ya sea por ID o String)
     String? currentValueName;
-    if (currentId != null) {
+    if (key == 'catalogoPeligros') {
+      // El peligro guarda el nombre directamente
+      currentValueName = _selectedValues['peligro'] as String?;
+    } else if (_selectedValues[key] is int) {
+      // Otros campos guardan el ID. Buscamos el nombre.
+      final int? currentId = _selectedValues[key] as int?;
       final selectedItem = items?.firstWhere((item) => item['id'] == currentId, orElse: () => null);
       currentValueName = selectedItem?['nombre'] as String?;
-    } else if (_selectedValues[key] is String) {
-      currentValueName = _selectedValues[key] as String?;
     }
-
+    
     if (items == null || items.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -272,6 +304,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       onChanged: (String? newValueName) {
         setState(() {
           if (key == 'catalogoPeligros') {
+            // Se maneja diferente porque activa la carga de condiciones
             _selectedValues['peligro'] = newValueName;
             final int? peligroId = _getIdByName(key, newValueName);
             if (peligroId != null) {
@@ -281,7 +314,10 @@ class _NewReportScreenState extends State<NewReportScreen> {
               _selectedCondicionesInseguras = [];
             }
           } else {
+            // Para Severidad y otros, guardamos el ID
             _selectedValues[key] = _getIdByName(key, newValueName);
+            // 💡 PRINT PARA VERIFICAR EL VALOR DESPUÉS DE LA SELECCIÓN
+            print('Valor seleccionado para $key: ${newValueName} (ID: ${_selectedValues[key]})');
           }
         });
       },

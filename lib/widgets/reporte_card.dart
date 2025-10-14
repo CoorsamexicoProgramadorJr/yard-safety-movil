@@ -17,7 +17,7 @@ class ReporteCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // RichText para separar color del tipo y ubicación
+            // RichText: Muestra Tipo, Severidad y Ubicación
             RichText(
               text: TextSpan(
                 children: [
@@ -26,11 +26,19 @@ class ReporteCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: _getTipoColor(reporte.tipo),
+                      color: Color.fromARGB(255, 1, 21, 56),
                     ),
                   ),
-                  TextSpan(
-                    text: '   en ${reporte.ubicacion}',
+                  TextSpan( // Se removió 'const' (Solución al error anterior)
+                    text: '   de  ${reporte.severidad} ',
+                    style: TextStyle( 
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: _getSeveridadColor(reporte.severidad), 
+                    ),
+                  ),
+                  TextSpan( // 💡 Se removió 'const' de aquí (Solución al error de la Línea 43)
+                    text: '   en  ${reporte.ubicacion}' ,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -48,6 +56,7 @@ class ReporteCard extends StatelessWidget {
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 12),
+     
             _buildDetailRow(null, 'Unidad:', reporte.unidad),
             _buildDetailRow(null, 'Estatus:', reporte.gravedad),
           ],
@@ -56,6 +65,8 @@ class ReporteCard extends StatelessWidget {
     );
   }
 
+  // --- WIDGET HELPER ---
+  
   Widget _buildDetailRow(IconData? icon, String label, String value, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.0),
@@ -63,10 +74,10 @@ class ReporteCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 16, color: const Color.fromARGB(255, 3, 232, 26)),
+            Icon(icon, size: 16, color: color ?? const Color.fromARGB(255, 3, 232, 26)),
             const SizedBox(width: 8),
           ],
-          Text(
+          Text( // 💡 Se removió 'const' de aquí (Solución al error de la Línea 84)
             label,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           ),
@@ -83,6 +94,8 @@ class ReporteCard extends StatelessWidget {
     );
   }
 
+  // --- COLOR HELPERS ---
+
   Color _getTipoColor(String tipo) {
     switch (tipo.toLowerCase()) {
       case 'incidente':
@@ -93,6 +106,19 @@ class ReporteCard extends StatelessWidget {
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  Color _getSeveridadColor(String severidad) {
+    switch (severidad.toLowerCase()) {
+      case 'gravedad alta':
+        return Colors.red.shade700; 
+      case 'gravedad media':
+        return Colors.amber.shade700; 
+      case 'gravedad baja':
+        return Colors.green.shade700; 
+      default:
+        return const Color.fromARGB(221, 0, 0, 0); 
     }
   }
 }

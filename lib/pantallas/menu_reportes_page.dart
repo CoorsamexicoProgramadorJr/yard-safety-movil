@@ -28,8 +28,33 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
     _cargarReportes();
   }
 
+  // 💡 FUNCIÓN DE ORDENAMIENTO POR SEVERIDAD
+  void _sortReports(List<MenuRep> list) {
+    // Definimos la prioridad: 1 = Alta, 2 = Media, 3 = Baja
+    int getSeveridadPriority(String severidad) {
+      switch (severidad.toLowerCase()) {
+        case 'gravedad alta':
+          return 1;
+        case 'gravedad media':
+          return 2;
+        case 'gravedad baja':
+          return 3;
+        default:
+          return 4; // Menor prioridad para desconocidos
+      }
+    }
+
+    list.sort((a, b) {
+      final priorityA = getSeveridadPriority(a.severidad);
+      final priorityB = getSeveridadPriority(b.severidad);
+      
+      // Compara las prioridades: 1 (Alta) debe ir antes que 2 (Media)
+      return priorityA.compareTo(priorityB);
+    });
+  }
+  // -------------------------------------------------------------
+
   Future<void> _cargarReportes({bool showLoading = true}) async {
-    // Si la lista ya tiene datos, solo actualiza en segundo plano sin mostrar el spinner.
     if (showLoading || reportes == null || reportes!.isEmpty) {
         setState(() => cargando = true);
     }
@@ -53,12 +78,14 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
             .map((e) => MenuRep.fromJson(e))
             .toList();
 
+        // 💡 Aplicamos el ORDENAMIENTO después de obtener los datos
+        _sortReports(lista); 
+
         setState(() {
           reportes = lista;
           cargando = false;
         });
       } else {
-        // En caso de error, limpia la lista y detén la carga
         setState(() {
           reportes = [];
           cargando = false;
@@ -75,10 +102,8 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
  
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // 1. Eliminar el token de autenticación
     await prefs.remove('token'); 
-    // 2. Navegar a la pantalla de Login y eliminar todas las rutas anteriores
+
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -87,9 +112,6 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
     }
   }
 
-  // ==========================================================
-  // Implementación del Pull-to-Refresh (como en la otra pantalla)
-  // ==========================================================
   Future<void> _handleRefresh() async {
     await _cargarReportes(showLoading: false);
   }
@@ -117,7 +139,7 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
           ? const Center(child: CircularProgressIndicator())
           : reportes == null || reportes!.isEmpty
               ? const Center(child: Text('No hay reportes disponibles.'))
-              : RefreshIndicator( // 💡 Agregamos RefreshIndicator
+              : RefreshIndicator(
                   onRefresh: _handleRefresh,
                   child: ListView.builder(
                       padding: const EdgeInsets.only(top: 20),
@@ -125,7 +147,7 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
                       itemBuilder: (context, index) {
                         final reporte = reportes![index];
                         return InkWell(
-                          onTap: () async { // 💡 Usamos async/await aquí
+                          onTap: () async {
                             final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -133,9 +155,8 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
                                     ReporteDetailsPage(reporte: reporte),
                               ),
                             );
-                            // Si la página de detalles regresa con `true`, significa que hubo un cambio
                             if (result == true) { 
-                              _cargarReportes(); // Recargamos la lista
+                              _cargarReportes();
                             }
                           },
                           child: ReporteCard(reporte: reporte),
@@ -144,25 +165,16 @@ class _MenuReportesPageState extends State<MenuReportesPage> {
                     ),
                 ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async { // 💡 Usamos async/await aquí
-          // Aquí debes decidir qué rondaId usar. Por ejemplo 1 como placeholder.
-          final int rondaEjecutadaId = 0;
-
+        onPressed: () async {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => NewReportScreen(
                 rondaId: widget.rondaId,
-                // El callback onBack ya no es necesario si usamos await/result
-                // onBack: () {
-                //   Navigator.pop(context);
-                //   _cargarReportes(); 
-                // },
               ),
             ),
           );
           
-          // Si la pantalla de nuevo reporte regresa con `true`, recarga la lista
           if (result == true) {
             _cargarReportes();
           }
