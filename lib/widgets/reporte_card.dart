@@ -29,7 +29,7 @@ class ReporteCard extends StatelessWidget {
                       color: Color.fromARGB(255, 1, 21, 56),
                     ),
                   ),
-                  TextSpan( // Se removió 'const' (Solución al error anterior)
+                  TextSpan( 
                     text: '   de  ${reporte.severidad} ',
                     style: TextStyle( 
                       fontSize: 14,
@@ -37,7 +37,7 @@ class ReporteCard extends StatelessWidget {
                       color: _getSeveridadColor(reporte.severidad), 
                     ),
                   ),
-                  TextSpan( // 💡 Se removió 'const' de aquí (Solución al error de la Línea 43)
+                  TextSpan(
                     text: '   en  ${reporte.ubicacion}' ,
                     style: const TextStyle(
                       fontSize: 14,
@@ -57,8 +57,10 @@ class ReporteCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
      
+            
             _buildDetailRow(null, 'Unidad:', reporte.unidad),
             _buildDetailRow(null, 'Estatus:', reporte.gravedad),
+            _buildDetailRow(null, '                                                                                                                                                                      Creado:', reporte.createdAt, color: const Color.fromARGB(255, 1, 21, 56)), // <--- 💡 Nueva Fila para la fecha
           ],
         ),
       ),
@@ -77,7 +79,7 @@ class ReporteCard extends StatelessWidget {
             Icon(icon, size: 16, color: color ?? const Color.fromARGB(255, 3, 232, 26)),
             const SizedBox(width: 8),
           ],
-          Text( // 💡 Se removió 'const' de aquí (Solución al error de la Línea 84)
+          Text( 
             label,
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           ),
@@ -96,6 +98,8 @@ class ReporteCard extends StatelessWidget {
 
   // --- COLOR HELPERS ---
 
+  // ... (Las funciones _getTipoColor y _getSeveridadColor se mantienen igual)
+
   Color _getTipoColor(String tipo) {
     switch (tipo.toLowerCase()) {
       case 'incidente':
@@ -111,11 +115,11 @@ class ReporteCard extends StatelessWidget {
 
   Color _getSeveridadColor(String severidad) {
     switch (severidad.toLowerCase()) {
-      case 'gravedad alta':
+      case 'severidad alta':
         return Colors.red.shade700; 
-      case 'gravedad media':
+      case 'severidad media':
         return Colors.amber.shade700; 
-      case 'gravedad baja':
+      case 'severidad baja':
         return Colors.green.shade700; 
       default:
         return const Color.fromARGB(221, 0, 0, 0); 

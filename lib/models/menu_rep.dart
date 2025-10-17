@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart'; // <--- 💡 Importa el paquete intl
+
 class MenuRep {
   final String id;
   final String tipo; // categoria_reporte_nombre
@@ -8,13 +10,13 @@ class MenuRep {
   final String gravedad; // status_reporte_nombre (ej: Abierto, Cerrado, etc)
   final String catalogo; // eventos[0].nombre
   final List<String> eventos;
-  
-
   final String severidad; 
- 
   final String severidadId; 
 
-  // 💡 CAMPOS CRUCIALES EXISTENTES
+  // 💡 Nuevo campo para la fecha de creación (ya formateada para mostrar)
+  final String createdAt; 
+ 
+  // CAMPOS CRUCIALES EXISTENTES
   final String rondaEjecutadaId;
   final String zonaId;
   final String ubicacionId;
@@ -29,28 +31,40 @@ class MenuRep {
     required this.gravedad,
     required this.catalogo,
     required this.eventos,
-    // Inicialización de los nuevos campos de Severidad
     required this.severidad,
     required this.severidadId,
-    // Inicialización de los campos cruciales
     required this.rondaEjecutadaId,
     required this.zonaId,
     required this.ubicacionId,
+    required this.createdAt, // <--- 💡 Añadido al constructor
   });
 
   factory MenuRep.fromJson(Map<String, dynamic> json) {
     final ubicacionData = json['ubicacion'] as Map<String, dynamic>?;
     
-    // 1. Extracción de IDs (necesarias para re-emisión)
+    // 1. Extracción y Formateo de la fecha
+    final String rawDate = json['created_at'] ?? '2000-01-01 00:00:00';
+    String formattedDate;
+    try {
+      final DateTime dateTime = DateTime.parse(rawDate);
+      // Formato deseado: '15 Oct, 20:45'
+      // Ajusta 'es' para español si tienes la localización configurada.
+      formattedDate = DateFormat('dd MMM, HH:mm', 'es').format(dateTime); 
+    } catch (e) {
+      // Manejar el caso si el string de la fecha es inválido
+      formattedDate = 'Fecha Inválida';
+    }
+    
+    // 2. Extracción de IDs (necesarias para re-emisión)
     final rondaEjecutadaId = json['ronda_ejecutada_id']?.toString() ?? '1'; 
     final zonaId = ubicacionData?['zona_id']?.toString() ?? '1';
     final ubicacionId = ubicacionData?['ubicacion_id']?.toString() ?? '';
     
-    // 2. Extracción de los campos de Severidad
+    // 3. Extracción de los campos de Severidad
     final severidadId = json['severidad_id']?.toString() ?? 'NA';
     final severidadNombre = json['severidad_nombre']?.toString() ?? 'NA';
     
-    // 3. Extracción del resto de campos
+    // 4. Extracción del resto de campos
     return MenuRep(
       id: json['id']?.toString() ?? '',
       tipo: json['categoria_reporte_nombre'] ?? '',
@@ -75,13 +89,14 @@ class MenuRep {
               .toList() ??
           [],
           
-      // 4. Asignación de los nuevos campos de Severidad
+      // Asignación de los campos
       severidad: severidadNombre,
       severidadId: severidadId,
     
       rondaEjecutadaId: rondaEjecutadaId,
       zonaId: zonaId,
       ubicacionId: ubicacionId,
+      createdAt: formattedDate, // <--- 💡 Asignación del campo formateado
     );
   }
 }
