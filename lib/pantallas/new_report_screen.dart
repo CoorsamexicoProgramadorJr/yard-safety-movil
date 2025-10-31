@@ -4,13 +4,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yardsafety/pantallas/menu_reportes_page.dart';
 import 'dart:io';
-import 'package:yardsafety/widgets/custom_text_field.dart';
+import 'package:yardsafety/widgets/custom_text_field.dart'; 
 import 'package:yardsafety/widgets/custom_dropdown.dart';
 import 'package:yardsafety/widgets/image_input.dart';
 import '../config/app_config.dart';
 
 class NewReportScreen extends StatefulWidget {
-  final int rondaId; // ID de la ronda seleccionada
+  final int rondaId; 
   final VoidCallback? onBack;
 
   NewReportScreen({required this.rondaId, this.onBack});
@@ -20,6 +20,7 @@ class NewReportScreen extends StatefulWidget {
 }
 
 class _NewReportScreenState extends State<NewReportScreen> {
+
   bool _isLoading = true;
 
   List<int> _selectedCondicionesInseguras = [];
@@ -30,7 +31,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
     'zona': null,
     'tipoUnidad': null,
     'empresa': null,
-    // 💡 CAMPO DE SEVERIDAD AÑADIDO
     'severidad': null, 
   };
 
@@ -39,8 +39,13 @@ class _NewReportScreenState extends State<NewReportScreen> {
     'numeroEconomico': TextEditingController(),
     'placa': TextEditingController(),
     'descripcion': TextEditingController(),
+    'descripcionOtro': TextEditingController(),
   };
   final List<File> _selectedImages = [];
+
+  bool get _peligroSeleccionadoEsOtro {
+    return _selectedValues['peligro'] == 'Otro';
+  }
 
   @override
   void initState() {
@@ -48,16 +53,18 @@ class _NewReportScreenState extends State<NewReportScreen> {
     _loadFormData();
   }
 
-  // Helper para obtener el ID de un elemento seleccionado por su nombre
+  @override
+  void dispose() {
+    _controllers.forEach((key, controller) => controller.dispose());
+    super.dispose();
+  }
+
   int? _getIdByName(String key, String? name) {
     if (name == null) return null;
     final id = _apiData[key]?.firstWhere(
       (item) => item['nombre'] == name,
       orElse: () => null,
     )?['id'] as int?;
-    
-    // 💡 PRINT PARA VERIFICAR ID
-    print('Dropdown: $key, Nombre: $name, ID obtenido: $id'); 
     return id;
   }
 
@@ -68,7 +75,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _fetchApiData('zona', 'select/zona'),
       _fetchApiData('tipoUnidad', 'select/tipo-unidad'),
       _fetchApiData('empresa', 'select/empresa'),
-      // 💡 CARGA DE DATOS DE SEVERIDAD
       _fetchApiData('severidad', 'select/severidad'), 
     ]);
     setState(() => _isLoading = false);
@@ -122,14 +128,13 @@ class _NewReportScreenState extends State<NewReportScreen> {
 
   Future<void> _crearReporte() async {
     final peligroId = _getIdByName('catalogoPeligros', _selectedValues['peligro'] as String?);
-    final severidadId = _selectedValues['severidad'] as int?; // El ID de severidad ya está guardado.
+    final severidadId = _selectedValues['severidad'] as int?; 
 
     if (peligroId == null) {
       _showSnackbar('Selecciona un peligro');
       return;
     }
     
-    // 💡 VALIDACIÓN DE SEVERIDAD
     if (severidadId == null) {
       _showSnackbar('Selecciona la severidad');
       return;
@@ -139,11 +144,27 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _showSnackbar('Por favor, agrega al menos una imagen');
       return;
     }
+    
+    if (_peligroSeleccionadoEsOtro && _controllers['descripcionOtro']!.text.trim().isEmpty) {
+      _showSnackbar('Debes ingresar la descripción adicional para el peligro "Otro".');
+      return;
+    }
 
-    if (_selectedCondicionesInseguras.isEmpty && _condicionesInseguras.isNotEmpty) {
+    if (!_peligroSeleccionadoEsOtro && _selectedCondicionesInseguras.isEmpty && _condicionesInseguras.isNotEmpty) {
       _showSnackbar('Selecciona al menos una condición insegura');
       return;
     }
+
+    // Lógica para determinar el clasificacion_id
+    String clasificacionIdAEnviar = '1'; 
+    if (_peligroSeleccionadoEsOtro) {
+      // Usamos '15' si el peligro es 'Otro', basado en tu JSON de reporte exitoso.
+      clasificacionIdAEnviar = '15'; 
+    } else {
+      // Usamos '1' como valor por defecto para la clasificación general de reportes normales.
+      clasificacionIdAEnviar = '1';
+    }
+
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -158,19 +179,27 @@ class _NewReportScreenState extends State<NewReportScreen> {
 
     // CAMPOS DE FORMULARIO
     request.fields['ronda_ejecutada_id'] = widget.rondaId.toString();
+    
+    // 1️⃣ CLASIFICACIÓN (Condicional)
+    request.fields['clasificacion_id'] = clasificacionIdAEnviar; 
+    
     request.fields['categoria_reporte_id'] = _selectedValues['categoriaReporte']?.toString() ?? '';
     request.fields['zona_id'] = _selectedValues['zona']?.toString() ?? '';
     request.fields['tipo_unidad_id'] = _selectedValues['tipoUnidad']?.toString() ?? '';
     request.fields['empresa_id'] = _selectedValues['empresa']?.toString() ?? '';
     request.fields['descripcion'] = _controllers['descripcion']!.text;
-    
-    // 💡 CAMPO DE SEVERIDAD EN EL REQUEST
     request.fields['severidad_id'] = severidadId.toString(); 
 
-    // EVENTOS Y CONDICIONES
+    // LÓGICA DE EVENTOS (Condiciones Inseguras o "Otro")
     request.fields['catalogo_evento_id[]'] = peligroId.toString();
-    for (var id in _selectedCondicionesInseguras) {
-      request.fields['condicion_insegura_id[]'] = id.toString();
+
+    if (_peligroSeleccionadoEsOtro) {
+      // 2️⃣ CORRECCIÓN DE CAMPO OTRO: Usamos 'descripcion_otro' que es lo que el backend espera
+      request.fields['descripcion_otro'] = _controllers['descripcionOtro']!.text.trim(); 
+    } else {
+      for (var id in _selectedCondicionesInseguras) {
+        request.fields['condicion_insegura_id[]'] = id.toString();
+      }
     }
 
     // UNIDAD
@@ -189,11 +218,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
         image.path,
       ));
     }
-
-    // 💡 PRINT PARA VERIFICAR LOS DATOS ANTES DE ENVIAR
-    print('--- DATOS DEL REPORTE A ENVIAR ---');
-    request.fields.forEach((k, v) => print('$k: $v'));
-    print('----------------------------------');
     
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
@@ -222,68 +246,14 @@ class _NewReportScreenState extends State<NewReportScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Nuevo Reporte - Ronda ${widget.rondaId}'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ListView(
-                children: [
-                  _buildDropdownCatalog('Peligro', 'catalogoPeligros'),
-                  if (_selectedValues['peligro'] != null)
-                    _buildCondicionInseguraCheckboxList(),
-                  // 💡 WIDGET DE SEVERIDAD AGREGADO
-                  _buildDropdownCatalog('Severidad', 'severidad'), 
-                  _buildDropdownCatalog('Categoría de Reporte', 'categoriaReporte'),
-                  _buildDropdownCatalog('Zona', 'zona'),
-                  _buildTextField('Número Económico ', 'numeroEconomico'),
-                  _buildTextField('Placa ', 'placa'),
-                  _buildDropdownCatalog('Tipo de Unidad ', 'tipoUnidad'),
-                  _buildDropdownCatalog('Empresa ', 'empresa'),
-                  _buildTextField('Descripción', 'descripcion', isDashed: true),
-                  const SizedBox(height: 16),
-                  ImageInput(
-                    images: _selectedImages,
-                    onImagesChanged: (images) {
-                      setState(() {
-                        _selectedImages.clear();
-                        _selectedImages.addAll(images);
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: _crearReporte,
-                      child: const Text('Crear Reporte'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-
   Widget _buildDropdownCatalog(String label, String key) {
     final List<dynamic>? items = _apiData[key];
     final List<String> itemNames = items?.map((item) => item['nombre'] as String).toList() ?? [];
     
-    // Obtener el nombre del valor seleccionado (ya sea por ID o String)
     String? currentValueName;
     if (key == 'catalogoPeligros') {
-      // El peligro guarda el nombre directamente
       currentValueName = _selectedValues['peligro'] as String?;
     } else if (_selectedValues[key] is int) {
-      // Otros campos guardan el ID. Buscamos el nombre.
       final int? currentId = _selectedValues[key] as int?;
       final selectedItem = items?.firstWhere((item) => item['id'] == currentId, orElse: () => null);
       currentValueName = selectedItem?['nombre'] as String?;
@@ -304,20 +274,21 @@ class _NewReportScreenState extends State<NewReportScreen> {
       onChanged: (String? newValueName) {
         setState(() {
           if (key == 'catalogoPeligros') {
-            // Se maneja diferente porque activa la carga de condiciones
             _selectedValues['peligro'] = newValueName;
             final int? peligroId = _getIdByName(key, newValueName);
-            if (peligroId != null) {
+            
+            // Si el peligro cambia, limpiamos las condiciones y el campo "Otro"
+            _condicionesInseguras = [];
+            _selectedCondicionesInseguras = [];
+            _controllers['descripcionOtro']!.clear(); 
+            
+            // Si el peligro NO es "Otro", cargamos las condiciones inseguras
+            if (peligroId != null && newValueName != 'Otro') {
               _fetchCondicionesInseguras(peligroId);
-            } else {
-              _condicionesInseguras = [];
-              _selectedCondicionesInseguras = [];
             }
+
           } else {
-            // Para Severidad y otros, guardamos el ID
             _selectedValues[key] = _getIdByName(key, newValueName);
-            // 💡 PRINT PARA VERIFICAR EL VALOR DESPUÉS DE LA SELECCIÓN
-            print('Valor seleccionado para $key: ${newValueName} (ID: ${_selectedValues[key]})');
           }
         });
       },
@@ -367,12 +338,78 @@ class _NewReportScreenState extends State<NewReportScreen> {
       hint: label,
       isDashed: isDashed,
       controller: _controllers[key]!,
+      maxLines: 1, 
+    );
+  }
+  
+  Widget _buildOtroDescriptionField() {
+    return CustomTextField(
+      label: const Text('Descripción del evento "Otro"'),
+      hint: 'Detalla aquí el peligro que identificaste',
+      isDashed: true,
+      maxLines: 3, 
+      controller: _controllers['descripcionOtro']!,
     );
   }
 
   @override
-  void dispose() {
-    _controllers.forEach((key, controller) => controller.dispose());
-    super.dispose();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Nuevo Reporte - Ronda ${widget.rondaId}'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ListView(
+                children: [
+                  _buildDropdownCatalog('Peligro', 'catalogoPeligros'),
+                  
+                  if (_selectedValues['peligro'] != null)
+                    if (_peligroSeleccionadoEsOtro)
+                      _buildOtroDescriptionField()
+                    else
+                      _buildCondicionInseguraCheckboxList(),
+                  
+                  _buildDropdownCatalog('Severidad', 'severidad'), 
+                  _buildDropdownCatalog('Categoría de Reporte', 'categoriaReporte'),
+                  _buildDropdownCatalog('Zona', 'zona'),
+                  _buildTextField('Número Económico ', 'numeroEconomico'),
+                  _buildTextField('Placa ', 'placa'),
+                  _buildDropdownCatalog('Tipo de Unidad ', 'tipoUnidad'),
+                  _buildDropdownCatalog('Empresa ', 'empresa'),
+                  CustomTextField(
+                    label: const Text('Descripción'),
+                    hint: 'Detalla aquí la descripción del evento',
+                    isDashed: true,
+                    controller: _controllers['descripcion']!,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  ImageInput(
+                    images: _selectedImages,
+                    onImagesChanged: (images) {
+                      setState(() {
+                        _selectedImages.clear();
+                        _selectedImages.addAll(images);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: _crearReporte,
+                      child: const Text('Crear Reporte'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
   }
 }

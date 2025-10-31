@@ -20,7 +20,7 @@ dependencies:
   circle_nav_bar: ^2.2.0
   shared_preferences: ^2.2.2
   intl: ^0.18.1
-
+ 
 dev_dependencies:
   flutter_test:
     sdk: flutter
